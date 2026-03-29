@@ -1,0 +1,20 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@source "../js/**/*.tsx";
+@source "../js/**/*.ts";
+@source "../js/**/*.jsx";
+@source "../js/**/*.js";
+@source "../views/**/*.blade.php";
+
+:root {
+    color-scheme: light;
+}
+
+.dark {
+    color-scheme: dark;
+}
+
+html, body {
+    @apply bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100;
+}
