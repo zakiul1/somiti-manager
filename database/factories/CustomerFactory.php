@@ -20,7 +20,7 @@ class CustomerFactory extends Factory
             'phone' => '01' . fake()->unique()->numerify('#########'),
             'email' => fake()->optional()->safeEmail(),
             'nid_number' => fake()->optional()->numerify('#############'),
-            'date_of_birth' => fake()->optional()->dateTimeBetween('-55 years', '-18 years')->format('Y-m-d'),
+            'date_of_birth' => fake()->optional()->dateTimeBetween('-55 years', '-18 years')?->format('Y-m-d'),
             'gender' => fake()->randomElement(['male', 'female', 'other']),
             'father_name' => fake()->name('male'),
             'mother_name' => fake()->name('female'),

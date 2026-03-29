@@ -22,6 +22,7 @@ const bn = {
         update: 'আপডেট করুন',
         selectOption: 'একটি অপশন নির্বাচন করুন',
         globalSearchPlaceholder: 'কাস্টমার, লোন, পেমেন্ট, ডকুমেন্ট খুঁজুন...',
+        assignedStaff: 'দায়িত্বপ্রাপ্ত এডমিন',
         back: 'ফিরে যান',
     },
     nav: {
@@ -222,6 +223,11 @@ const bn = {
         noLoanLinked: 'এখনও কোনো লোন যুক্ত হয়নি।',
         addLoan: 'লোন যোগ করুন',
         viewLoan: 'লোন দেখুন',
+        identityMedia: 'পরিচয় সংক্রান্ত ছবি',
+        identityMediaSubtitle: 'সেভ করার আগে কাস্টমারের ছবি এবং এনআইডি সামনে/পিছনের প্রিভিউ দেখুন।',
+        photo: 'ছবি',
+        nidFront: 'এনআইডি সামনের অংশ',
+        nidBack: 'এনআইডি পিছনের অংশ',
     },
 
 
@@ -282,6 +288,11 @@ const bn = {
         loanConnectionsSubtitle: 'এই গ্যারান্টরকে এক বা একাধিক কাস্টমার লোনের সাথে যুক্ত করা যাবে।',
         noLoansLinked: 'এখনও কোনো লোন যুক্ত হয়নি।',
         viewLoan: 'লোন দেখুন',
+        identityMedia: 'পরিচয় সংক্রান্ত ছবি',
+        identityMediaSubtitle: 'সেভ করার আগে কাস্টমারের ছবি এবং এনআইডি সামনে/পিছনের প্রিভিউ দেখুন।',
+        photo: 'ছবি',
+        nidFront: 'এনআইডি সামনের অংশ',
+        nidBack: 'এনআইডি পিছনের অংশ',
     },
 
 
@@ -426,6 +437,11 @@ const bn = {
         createdAt: 'তৈরির সময়',
         updatedAt: 'আপডেটের সময়',
         viewLoan: 'লোন দেখুন',
+        identityMedia: 'পরিচয় সংক্রান্ত ছবি',
+        identityMediaSubtitle: 'সেভ করার আগে কাস্টমারের ছবি এবং এনআইডি সামনে/পিছনের প্রিভিউ দেখুন।',
+        photo: 'ছবি',
+        nidFront: 'এনআইডি সামনের অংশ',
+        nidBack: 'এনআইডি পিছনের অংশ',
     },
 
     profile: {

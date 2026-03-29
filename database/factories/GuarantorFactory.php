@@ -22,7 +22,7 @@ class GuarantorFactory extends Factory
             'phone' => '01' . fake()->unique()->numerify('#########'),
             'email' => fake()->optional()->safeEmail(),
             'nid_number' => fake()->optional()->numerify('#############'),
-            'date_of_birth' => fake()->optional()->dateTimeBetween('-60 years', '-20 years')->format('Y-m-d'),
+            'date_of_birth' => fake()->optional()->dateTimeBetween('-60 years', '-20 years')?->format('Y-m-d'),
             'gender' => fake()->randomElement(['male', 'female', 'other']),
             'relationship' => fake()->randomElement(['Brother', 'Sister', 'Father', 'Mother', 'Uncle', 'Neighbor', 'Friend', 'Spouse']),
             'occupation' => fake()->randomElement(['Farmer', 'Shopkeeper', 'Teacher', 'Driver', 'Tailor', 'Business']),

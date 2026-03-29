@@ -79,10 +79,14 @@ class AuthenticatedSessionController extends Controller
             ]);
         }
 
-        $user->forceFill(['last_login_at' => now()])->save();
+        $user->forceFill([
+            'last_login_at' => now(),
+        ])->save();
 
         if ($user->hasRole('customer')) {
-            return redirect()->intended(route('portal.dashboard', absolute: false));
+            $request->session()->forget('url.intended');
+
+            return redirect()->route('portal.dashboard');
         }
 
         return redirect()->intended(route('dashboard', absolute: false));

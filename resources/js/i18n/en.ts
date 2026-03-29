@@ -24,6 +24,7 @@ const en = {
         update: 'Update',
         selectOption: 'Select an option',
         globalSearchPlaceholder: 'Search customers, loans, payments, documents...',
+        assignedStaff: 'Assigned Staff',
     },
     nav: {
         dashboard: 'Dashboard',
@@ -244,7 +245,10 @@ const en = {
         loanPreparationSubtitle: 'This section prepares the customer profile for live loan linkage in Phase 1.',
         noLoanLinked: 'No loan linked yet.',
         addLoan: 'Add Loan',
-        viewLoan: 'View Loan'
+        viewLoan: 'View Loan',
+        identityMedia: 'Identity Media',
+        identityMediaSubtitle: 'Upload customer photo and NID front/back with live preview before saving.',
+        photo: 'Photo'
     },
 
 
@@ -305,6 +309,9 @@ const en = {
         loanConnectionsSubtitle: 'This guarantor can be attached to one or more customer loans.',
         noLoansLinked: 'No loans linked yet.',
         viewLoan: 'View Loan',
+        identityMedia: 'Identity Media',
+        identityMediaSubtitle: 'Upload customer photo and NID front/back with live preview before saving.',
+        photo: 'Photo',
     },
 
 
@@ -451,6 +458,9 @@ const en = {
         createdAt: 'Created At',
         updatedAt: 'Updated At',
         viewLoan: 'View Loan',
+        identityMedia: 'Identity Media',
+        identityMediaSubtitle: 'Upload customer photo and NID front/back with live preview before saving.',
+        photo: 'Photo',
     },
 
     profile: {
@@ -701,6 +711,7 @@ const en = {
         portalAccess: 'Portal Access',
         portalAccessAdminDescription: 'Create or manage the customer portal account in a controlled way.',
         createPortalOnCustomerCreate: 'Create customer portal account during customer creation',
+        portalAccessEnabled: 'Portal access enabled',
         managePortalAccess: 'Manage Portal Access',
         portalStatus: 'Portal Status',
         enabled: 'Enabled',

@@ -9,11 +9,14 @@ class AdminUserSeeder extends Seeder
 {
     public function run(): void
     {
-        $user = User::firstOrCreate(
+        $user = User::updateOrCreate(
             ['email' => 'admin@somiti.com'],
             [
                 'name' => 'Super Admin',
+                'username' => 'superadmin',
                 'password' => 'password',
+                'is_active' => true,
+                'portal_access_enabled' => false,
             ]
         );
 

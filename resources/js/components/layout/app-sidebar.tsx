@@ -29,7 +29,7 @@ export function AppSidebar() {
     });
 
     return (
-        <aside className="hidden w-72 shrink-0 border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 lg:block">
+        <aside className="hidden h-screen w-72 shrink-0 border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 lg:flex lg:flex-col">
             <div className="flex h-16 items-center border-b border-slate-200 px-6 dark:border-slate-800">
                 <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-sm">
@@ -42,7 +42,7 @@ export function AppSidebar() {
                 </div>
             </div>
 
-            <nav className="space-y-2 p-4">
+            <nav className="flex-1 space-y-2 overflow-y-auto p-4">
                 {items.map((item) => {
                     const isActive = item.href !== '#' && (url === item.href || url.startsWith(item.href));
                     const Icon = item.icon;

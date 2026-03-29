@@ -11,6 +11,7 @@ use App\Services\CsvExportService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 use Inertia\Inertia;
@@ -200,6 +201,10 @@ class GuarantorController extends Controller
     public function destroy(Guarantor $guarantor): RedirectResponse
     {
         try {
+            if ($guarantor->loans()->exists()) {
+                $guarantor->loans()->detach();
+            }
+
             $this->deleteStoredFile($guarantor->photo_path);
             $this->deleteStoredFile($guarantor->nid_front_path);
             $this->deleteStoredFile($guarantor->nid_back_path);

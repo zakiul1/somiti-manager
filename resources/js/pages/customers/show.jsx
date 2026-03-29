@@ -86,6 +86,11 @@ export default function CustomerShow({ customer }) {
                             {props.flash.success}
                         </div>
                     ) : null}
+                    {props.flash?.error ? (
+                        <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-300">
+                            {props.flash.error}
+                        </div>
+                    ) : null}
 
                     <div className="grid gap-6 xl:grid-cols-3">
                         <div className="space-y-6 xl:col-span-2">
@@ -258,6 +263,7 @@ export default function CustomerShow({ customer }) {
                 show={showDelete}
                 title={t('customers.deleteCustomer')}
                 description={t('customers.deleteConfirm')}
+                confirmLabel={t('common.delete')}
                 onClose={() => setShowDelete(false)}
                 onConfirm={() => router.delete(`/customers/${customer.id}`, { preserveScroll: true, onSuccess: () => setShowDelete(false) })}
             />

@@ -4,6 +4,7 @@ export function ConfirmDeleteModal(props: {
     show: boolean;
     title?: string;
     description?: string;
+    confirmLabel?: string;
     onConfirm: () => void;
     onClose: () => void;
 }) {
@@ -12,7 +13,7 @@ export function ConfirmDeleteModal(props: {
             show={props.show}
             title={props.title ?? 'Delete item'}
             description={props.description ?? 'This action cannot be undone.'}
-            confirmLabel="Delete"
+            confirmLabel={props.confirmLabel}
             onConfirm={props.onConfirm}
             onClose={props.onClose}
         />
