@@ -10,8 +10,9 @@ use App\Services\AuditLogService;
 use App\Services\CsvExportService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 use Inertia\Inertia;
@@ -36,8 +37,14 @@ class GuarantorController extends Controller
                         ->orWhere('email', 'like', "%{$search}%");
                 });
             })
-            ->when(in_array($status, ['active', 'inactive'], true), fn ($builder) => $builder->where('status', $status))
-            ->when($customerId !== 'all' && ctype_digit($customerId), fn ($builder) => $builder->where('customer_id', (int) $customerId));
+            ->when(
+                in_array($status, ['active', 'inactive'], true),
+                fn ($builder) => $builder->where('status', $status)
+            )
+            ->when(
+                $customerId !== 'all' && ctype_digit($customerId),
+                fn ($builder) => $builder->where('customer_id', (int) $customerId)
+            );
 
         $guarantors = $query->latest()->paginate(10)->withQueryString()->through(fn (Guarantor $guarantor) => [
             'id' => $guarantor->id,
@@ -49,6 +56,7 @@ class GuarantorController extends Controller
             'status' => $guarantor->status,
             'has_photo' => filled($guarantor->photo_path),
             'has_documents' => filled($guarantor->nid_front_path) || filled($guarantor->nid_back_path),
+            'photo_url' => $guarantor->photo_url,
             'customer' => $guarantor->customer ? [
                 'id' => $guarantor->customer->id,
                 'name' => $guarantor->customer->name,
@@ -69,11 +77,15 @@ class GuarantorController extends Controller
                 'active' => Guarantor::where('status', 'active')->count(),
                 'inactive' => Guarantor::where('status', 'inactive')->count(),
             ],
-            'customers' => Customer::query()->orderBy('name')->get(['id', 'name', 'customer_code'])->map(fn (Customer $customer) => [
-                'id' => $customer->id,
-                'name' => $customer->name,
-                'customer_code' => $customer->customer_code,
-            ])->values(),
+            'customers' => Customer::query()
+                ->orderBy('name')
+                ->get(['id', 'name', 'customer_code'])
+                ->map(fn (Customer $customer) => [
+                    'id' => $customer->id,
+                    'name' => $customer->name,
+                    'customer_code' => $customer->customer_code,
+                ])
+                ->values(),
         ]);
     }
 
@@ -83,7 +95,8 @@ class GuarantorController extends Controller
         $status = (string) $request->string('status', 'all');
         $customerId = (string) $request->string('customer_id', 'all');
 
-        $rows = Guarantor::query()->with('customer:id,name,customer_code')
+        $rows = Guarantor::query()
+            ->with('customer:id,name,customer_code')
             ->when($search !== '', function ($builder) use ($search) {
                 $builder->where(function ($nested) use ($search) {
                     $nested->where('guarantor_code', 'like', "%{$search}%")
@@ -93,9 +106,16 @@ class GuarantorController extends Controller
                         ->orWhere('email', 'like', "%{$search}%");
                 });
             })
-            ->when(in_array($status, ['active', 'inactive'], true), fn ($builder) => $builder->where('status', $status))
-            ->when($customerId !== 'all' && ctype_digit($customerId), fn ($builder) => $builder->where('customer_id', (int) $customerId))
-            ->latest()->get()
+            ->when(
+                in_array($status, ['active', 'inactive'], true),
+                fn ($builder) => $builder->where('status', $status)
+            )
+            ->when(
+                $customerId !== 'all' && ctype_digit($customerId),
+                fn ($builder) => $builder->where('customer_id', (int) $customerId)
+            )
+            ->latest()
+            ->get()
             ->map(fn (Guarantor $guarantor) => [
                 $guarantor->guarantor_code,
                 $guarantor->name,
@@ -108,7 +128,11 @@ class GuarantorController extends Controller
                 $guarantor->created_at?->format('Y-m-d H:i:s'),
             ]);
 
-        return CsvExportService::download('guarantors-' . now()->format('Y-m-d-His') . '.csv', ['Guarantor Code', 'Name', 'Phone', 'Email', 'Relationship', 'Customer Code', 'Customer Name', 'Status', 'Created At'], $rows);
+        return CsvExportService::download(
+            'guarantors-' . now()->format('Y-m-d-His') . '.csv',
+            ['Guarantor Code', 'Name', 'Phone', 'Email', 'Relationship', 'Customer Code', 'Customer Name', 'Status', 'Created At'],
+            $rows
+        );
     }
 
     public function create(Request $request): Response
@@ -118,6 +142,7 @@ class GuarantorController extends Controller
 
         if ($customerId) {
             $customer = Customer::query()->find($customerId);
+
             if ($customer) {
                 $selectedCustomer = [
                     'id' => $customer->id,
@@ -130,36 +155,79 @@ class GuarantorController extends Controller
         return Inertia::render('guarantors/create', [
             'guarantorCode' => $this->generateGuarantorCode(),
             'selectedCustomer' => $selectedCustomer,
-            'customers' => Customer::query()->orderBy('name')->get(['id', 'name', 'customer_code'])->map(fn (Customer $customer) => [
-                'id' => $customer->id,
-                'name' => $customer->name,
-                'customer_code' => $customer->customer_code,
-            ])->values(),
+            'customers' => Customer::query()
+                ->orderBy('name')
+                ->get(['id', 'name', 'customer_code'])
+                ->map(fn (Customer $customer) => [
+                    'id' => $customer->id,
+                    'name' => $customer->name,
+                    'customer_code' => $customer->customer_code,
+                ])
+                ->values(),
         ]);
     }
 
     public function store(StoreGuarantorRequest $request): RedirectResponse
     {
-        $guarantor = Guarantor::create([
-            ...$request->safe()->except(['photo', 'nid_front', 'nid_back', 'remove_photo', 'remove_nid_front', 'remove_nid_back']),
-            'guarantor_code' => $this->generateGuarantorCode(),
-            'created_by' => $request->user()?->id,
-            'updated_by' => $request->user()?->id,
-        ]);
+        try {
+            $guarantor = DB::transaction(function () use ($request) {
+                $guarantor = Guarantor::create([
+                    ...$request->safe()->except([
+                        'photo',
+                        'nid_front',
+                        'nid_back',
+                        'remove_photo',
+                        'remove_nid_front',
+                        'remove_nid_back',
+                    ]),
+                    'guarantor_code' => $this->generateGuarantorCode(),
+                    'created_by' => $request->user()?->id,
+                    'updated_by' => $request->user()?->id,
+                ]);
 
-        $this->syncGuarantorIdentityMedia($request, $guarantor);
+                $this->syncGuarantorIdentityMedia($request, $guarantor);
 
-        AuditLogService::log('guarantor', 'created', 'Guarantor created.', $guarantor, $request->user()?->id, $guarantor->guarantor_code, [
-            'name' => $guarantor->name,
-            'customer_id' => $guarantor->customer_id,
-        ]);
+                AuditLogService::log(
+                    'guarantor',
+                    'created',
+                    'Guarantor created.',
+                    $guarantor,
+                    $request->user()?->id,
+                    $guarantor->guarantor_code,
+                    [
+                        'name' => $guarantor->name,
+                        'customer_id' => $guarantor->customer_id,
+                    ]
+                );
 
-        return Redirect::route('guarantors.show', $guarantor)->with('success', __('Guarantor created successfully.'));
+                return $guarantor;
+            });
+
+            return Redirect::route('guarantors.show', $guarantor)
+                ->with('success', __('Guarantor created successfully.'));
+        } catch (Throwable $exception) {
+            Log::error('Guarantor create failed.', [
+                'message' => $exception->getMessage(),
+                'file' => $exception->getFile(),
+                'line' => $exception->getLine(),
+                'name' => $request->input('name'),
+                'phone' => $request->input('phone'),
+                'customer_id' => $request->input('customer_id'),
+                'user_id' => $request->user()?->id,
+            ]);
+
+            return Redirect::back()
+                ->withInput()
+                ->with('error', __('Guarantor create failed. Please check the form and try again.'));
+        }
     }
 
     public function show(Guarantor $guarantor): Response
     {
-        $guarantor->load(['customer:id,name,customer_code,phone,status', 'loans:id,loan_code,principal_amount,total_payable,status,start_date']);
+        $guarantor->load([
+            'customer:id,name,customer_code,phone,status',
+            'loans:id,loan_code,principal_amount,total_payable,status,start_date',
+        ]);
 
         return Inertia::render('guarantors/show', [
             'guarantor' => $this->guarantorPayload($guarantor),
@@ -170,54 +238,108 @@ class GuarantorController extends Controller
     {
         return Inertia::render('guarantors/edit', [
             'guarantor' => $this->guarantorPayload($guarantor),
-            'customers' => Customer::query()->orderBy('name')->get(['id', 'name', 'customer_code'])->map(fn (Customer $customer) => [
-                'id' => $customer->id,
-                'name' => $customer->name,
-                'customer_code' => $customer->customer_code,
-            ])->values(),
+            'customers' => Customer::query()
+                ->orderBy('name')
+                ->get(['id', 'name', 'customer_code'])
+                ->map(fn (Customer $customer) => [
+                    'id' => $customer->id,
+                    'name' => $customer->name,
+                    'customer_code' => $customer->customer_code,
+                ])
+                ->values(),
         ]);
     }
 
     public function update(UpdateGuarantorRequest $request, Guarantor $guarantor): RedirectResponse
     {
         try {
-            $guarantor->update([
-                ...$request->safe()->except(['photo', 'nid_front', 'nid_back', 'remove_photo', 'remove_nid_front', 'remove_nid_back']),
-                'updated_by' => $request->user()?->id,
-            ]);
+            DB::transaction(function () use ($request, $guarantor) {
+                $guarantor->update([
+                    ...$request->safe()->except([
+                        'photo',
+                        'nid_front',
+                        'nid_back',
+                        'remove_photo',
+                        'remove_nid_front',
+                        'remove_nid_back',
+                    ]),
+                    'updated_by' => $request->user()?->id,
+                ]);
 
-            $this->syncGuarantorIdentityMedia($request, $guarantor);
+                $this->syncGuarantorIdentityMedia($request, $guarantor);
 
-            AuditLogService::log('guarantor', 'updated', 'Guarantor updated.', $guarantor, $request->user()?->id, $guarantor->guarantor_code, [
-                'name' => $guarantor->name,
-            ]);
+                AuditLogService::log(
+                    'guarantor',
+                    'updated',
+                    'Guarantor updated.',
+                    $guarantor,
+                    $request->user()?->id,
+                    $guarantor->guarantor_code,
+                    [
+                        'name' => $guarantor->name,
+                        'customer_id' => $guarantor->customer_id,
+                    ]
+                );
+            });
 
-            return Redirect::route('guarantors.show', $guarantor)->with('success', __('Guarantor updated successfully.'));
+            return Redirect::route('guarantors.show', $guarantor)
+                ->with('success', __('Guarantor updated successfully.'));
         } catch (Throwable $exception) {
-            return Redirect::back()->withInput()->with('error', __('Guarantor update failed. Please check the form and try again.'));
+            Log::error('Guarantor update failed.', [
+                'guarantor_id' => $guarantor->id,
+                'message' => $exception->getMessage(),
+                'file' => $exception->getFile(),
+                'line' => $exception->getLine(),
+                'user_id' => $request->user()?->id,
+            ]);
+
+            return Redirect::back()
+                ->withInput()
+                ->with('error', __('Guarantor update failed. Please check the form and try again.'));
         }
     }
 
     public function destroy(Guarantor $guarantor): RedirectResponse
     {
         try {
-            if ($guarantor->loans()->exists()) {
-                $guarantor->loans()->detach();
-            }
+            DB::transaction(function () use ($guarantor) {
+                if ($guarantor->loans()->exists()) {
+                    $guarantor->loans()->detach();
+                }
 
-            $this->deleteStoredFile($guarantor->photo_path);
-            $this->deleteStoredFile($guarantor->nid_front_path);
-            $this->deleteStoredFile($guarantor->nid_back_path);
+                $this->deleteStoredFile($guarantor->photo_path);
+                $this->deleteStoredFile($guarantor->nid_front_path);
+                $this->deleteStoredFile($guarantor->nid_back_path);
 
-            AuditLogService::log('guarantor', 'deleted', 'Guarantor deleted.', $guarantor, request()->user()?->id, $guarantor->guarantor_code, [
-                'name' => $guarantor->name,
+                AuditLogService::log(
+                    'guarantor',
+                    'deleted',
+                    'Guarantor deleted.',
+                    $guarantor,
+                    request()->user()?->id,
+                    $guarantor->guarantor_code,
+                    [
+                        'name' => $guarantor->name,
+                    ]
+                );
+
+                $guarantor->delete();
+            });
+
+            return Redirect::route('guarantors.index')
+                ->with('success', __('Guarantor deleted successfully.'));
+        } catch (Throwable $exception) {
+            Log::error('Guarantor delete failed.', [
+                'guarantor_id' => $guarantor->id,
+                'guarantor_code' => $guarantor->guarantor_code,
+                'message' => $exception->getMessage(),
+                'file' => $exception->getFile(),
+                'line' => $exception->getLine(),
+                'user_id' => request()->user()?->id,
             ]);
 
-            $guarantor->delete();
-
-            return Redirect::route('guarantors.index')->with('success', __('Guarantor deleted successfully.'));
-        } catch (Throwable $exception) {
-            return Redirect::back()->with('error', __('Guarantor delete failed. Remove related records first if needed.'));
+            return Redirect::back()
+                ->with('error', __('Guarantor delete failed. Remove related records first if needed.'));
         }
     }
 
@@ -230,11 +352,24 @@ class GuarantorController extends Controller
             'updated_by' => request()->user()?->id,
         ]);
 
-        AuditLogService::log('guarantor', $nextStatus === 'active' ? 'activated' : 'archived', $nextStatus === 'active' ? 'Guarantor marked as active.' : 'Guarantor archived.', $guarantor, request()->user()?->id, $guarantor->guarantor_code, [
-            'status' => $nextStatus,
-        ]);
+        AuditLogService::log(
+            'guarantor',
+            $nextStatus === 'active' ? 'activated' : 'archived',
+            $nextStatus === 'active' ? 'Guarantor marked as active.' : 'Guarantor archived.',
+            $guarantor,
+            request()->user()?->id,
+            $guarantor->guarantor_code,
+            [
+                'status' => $nextStatus,
+            ]
+        );
 
-        return Redirect::back()->with('success', $nextStatus === 'active' ? __('Guarantor marked as active successfully.') : __('Guarantor archived successfully.'));
+        return Redirect::back()->with(
+            'success',
+            $nextStatus === 'active'
+                ? __('Guarantor marked as active successfully.')
+                : __('Guarantor archived successfully.')
+        );
     }
 
     protected function guarantorPayload(Guarantor $guarantor): array
@@ -267,14 +402,16 @@ class GuarantorController extends Controller
                 'phone' => $guarantor->customer->phone,
                 'status' => $guarantor->customer->status,
             ] : null,
-            'loans' => $guarantor->relationLoaded('loans') ? $guarantor->loans->map(fn ($loan) => [
-                'id' => $loan->id,
-                'loan_code' => $loan->loan_code,
-                'principal_amount' => (float) $loan->principal_amount,
-                'total_payable' => (float) $loan->total_payable,
-                'status' => $loan->status,
-                'start_date' => $loan->start_date?->format('Y-m-d'),
-            ])->values() : [],
+            'loans' => $guarantor->relationLoaded('loans')
+                ? $guarantor->loans->map(fn ($loan) => [
+                    'id' => $loan->id,
+                    'loan_code' => $loan->loan_code,
+                    'principal_amount' => (float) $loan->principal_amount,
+                    'total_payable' => (float) $loan->total_payable,
+                    'status' => $loan->status,
+                    'start_date' => $loan->start_date?->format('Y-m-d'),
+                ])->values()
+                : [],
             'created_at' => $guarantor->created_at?->format('Y-m-d h:i A'),
             'updated_at' => $guarantor->updated_at?->format('Y-m-d h:i A'),
         ];
@@ -282,14 +419,20 @@ class GuarantorController extends Controller
 
     protected function generateGuarantorCode(): string
     {
-        $latestNumericSuffix = Guarantor::query()->select('guarantor_code')->get()->map(function (Guarantor $guarantor) {
-            if (preg_match('/(\d+)$/', (string) $guarantor->guarantor_code, $matches) !== 1) {
-                return 0;
-            }
-            return (int) $matches[1];
-        })->max() ?? 0;
+        $latestNumericSuffix = Guarantor::query()
+            ->select('guarantor_code')
+            ->get()
+            ->map(function (Guarantor $guarantor) {
+                if (preg_match('/(\d+)$/', (string) $guarantor->guarantor_code, $matches) !== 1) {
+                    return 0;
+                }
+
+                return (int) $matches[1];
+            })
+            ->max() ?? 0;
 
         $nextNumber = max(1, $latestNumericSuffix + 1);
+
         do {
             $candidate = 'GUA-' . str_pad((string) $nextNumber, 5, '0', STR_PAD_LEFT);
             $exists = Guarantor::where('guarantor_code', $candidate)->exists();
@@ -308,22 +451,27 @@ class GuarantorController extends Controller
             $this->deleteStoredFile($guarantor->photo_path);
             $updates['photo_path'] = null;
         }
+
         if ($request->hasFile('photo')) {
             $this->deleteStoredFile($guarantor->photo_path);
             $updates['photo_path'] = $request->file('photo')->store($base, 'public');
         }
+
         if ($request->boolean('remove_nid_front')) {
             $this->deleteStoredFile($guarantor->nid_front_path);
             $updates['nid_front_path'] = null;
         }
+
         if ($request->hasFile('nid_front')) {
             $this->deleteStoredFile($guarantor->nid_front_path);
             $updates['nid_front_path'] = $request->file('nid_front')->store($base, 'public');
         }
+
         if ($request->boolean('remove_nid_back')) {
             $this->deleteStoredFile($guarantor->nid_back_path);
             $updates['nid_back_path'] = null;
         }
+
         if ($request->hasFile('nid_back')) {
             $this->deleteStoredFile($guarantor->nid_back_path);
             $updates['nid_back_path'] = $request->file('nid_back')->store($base, 'public');

@@ -1,5 +1,6 @@
 import { router } from '@inertiajs/react';
 import { AppButton } from '@/components/ui/app-button';
+import { useLocale } from '@/hooks/use-locale';
 
 type PaginationLink = {
     url: string | null;
@@ -26,21 +27,23 @@ export function TablePagination({
     nextPageUrl,
     itemLabel = 'items',
 }: TablePaginationProps) {
+    const { t } = useLocale();
+
     if (!links.length) {
         return null;
     }
 
     return (
         <div className="mt-4 flex flex-col gap-3 border-t border-slate-200 px-4 py-4 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            <p className="break-words text-sm text-slate-500 dark:text-slate-400">
                 {typeof from === 'number' && typeof to === 'number' && typeof total === 'number'
-                    ? `Showing ${from}-${to} of ${total} ${itemLabel}`
-                    : 'Pagination'}
+                    ? t('common.showingRange', { from, to, total, itemLabel })
+                    : t('common.pagination')}
             </p>
 
             <div className="flex flex-wrap items-center gap-2">
                 <AppButton variant="outline" size="sm" disabled={!previousPageUrl} onClick={() => previousPageUrl && router.visit(previousPageUrl, { preserveScroll: true })}>
-                    Previous
+                    {t('common.previous')}
                 </AppButton>
 
                 {links.filter((link) => !['&laquo; Previous', 'Next &raquo;'].includes(link.label)).map((link, index) => (
@@ -56,7 +59,7 @@ export function TablePagination({
                 ))}
 
                 <AppButton variant="outline" size="sm" disabled={!nextPageUrl} onClick={() => nextPageUrl && router.visit(nextPageUrl, { preserveScroll: true })}>
-                    Next
+                    {t('common.next')}
                 </AppButton>
             </div>
         </div>

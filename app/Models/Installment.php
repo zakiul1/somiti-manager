@@ -48,11 +48,11 @@ class Installment extends Model
     {
         return $this->belongsTo(Customer::class);
     }
+
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
     }
-
 
     public function creator(): BelongsTo
     {
@@ -64,4 +64,40 @@ class Installment extends Model
         return $this->belongsTo(User::class, 'updated_by');
     }
 
+    public function scopePaid($query)
+    {
+        return $query->where('status', 'paid');
+    }
+
+    public function scopePending($query)
+    {
+        return $query->whereIn('status', ['pending', 'partial']);
+    }
+
+    public function scopeOpen($query)
+    {
+        return $query->whereIn('status', ['pending', 'partial', 'overdue']);
+    }
+
+    public function scopeOverdue($query)
+    {
+        return $query
+            ->whereIn('status', ['pending', 'partial', 'overdue'])
+            ->whereDate('due_date', '<', now()->toDateString());
+    }
+
+    public function scopeDueToday($query)
+    {
+        return $query
+            ->whereIn('status', ['pending', 'partial', 'overdue'])
+            ->whereDate('due_date', now()->toDateString());
+    }
+
+    public function scopeUpcoming($query, int $days = 7)
+    {
+        return $query
+            ->whereIn('status', ['pending', 'partial', 'overdue'])
+            ->whereDate('due_date', '>', now()->toDateString())
+            ->whereDate('due_date', '<=', now()->addDays($days)->toDateString());
+    }
 }

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="{{ $locale }}">
+@php($organization = $organization ?? [])
 <head>
     <meta charset="utf-8">
     <title>{{ $title }}</title>
@@ -72,8 +73,8 @@
                 <td class="signature-cell text-right">
                     <div style="display:inline-block; text-align:left;">
                         <div class="signature-line">
-                            <div><strong>{{ $organization['authority_name'] ?: __('print.signature') }}</strong></div>
-                            <div class="muted small">{{ $organization['authority_title'] ?: __('print.approvedBy') }}</div>
+                            <div><strong>{{ ($organization['authority_name'] ?? '') ?: __('print.signature') }}</strong></div>
+                            <div class="muted small">{{ ($organization['authority_title'] ?? '') ?: __('print.approvedBy') }}</div>
                         </div>
                     </div>
                 </td>

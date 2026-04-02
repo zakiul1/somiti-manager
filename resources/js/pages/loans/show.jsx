@@ -1,4 +1,4 @@
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 import AppLayout from '@/layouts/app-layout';
 import { PageContainer } from '@/components/layout/page-container';
@@ -12,9 +12,9 @@ import { useLocale } from '@/hooks/use-locale';
 
 function DetailItem({ label, value }) {
     return (
-        <div>
+        <div className="min-w-0">
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">{label}</p>
-            <p className="mt-1 text-sm text-slate-900 dark:text-slate-100">{value || '-'}</p>
+            <p className="mt-1 break-words text-sm text-slate-900 dark:text-slate-100">{value || '-'}</p>
         </div>
     );
 }
@@ -25,8 +25,9 @@ function money(value, locale = 'en') {
 
 export default function LoansShow({ loan }) {
     const { t, locale } = useLocale();
-    const { props } = usePage();
     const [showDelete, setShowDelete] = useState(false);
+    const isClosed = loan.status === 'closed';
+    const canSettle = loan.financial_summary?.can_settle;
 
     return (
         <>
@@ -35,40 +36,49 @@ export default function LoansShow({ loan }) {
                 <PageContainer>
                     <PageHeader
                         title={loan.loan_code}
-                        description={t('loans.recordSummarySubtitle')}
+                        description={isClosed ? t('loans.closedLoanSubtitle') : t('loans.recordSummarySubtitle')}
                         actions={<div className="flex flex-wrap items-center gap-2">
-                            <AppBadge variant={loan.status === 'active' ? 'success' : loan.status === 'approved' ? 'default' : loan.status === 'closed' ? 'default' : loan.status === 'defaulted' ? 'danger' : 'warning'}>{t(`loans.${loan.status}`)}</AppBadge>
-                            {loan.status === 'draft' ? <AppButton variant="secondary" onClick={() => router.post(`/loans/${loan.id}/approve`)}>{t('loans.approveLoan')}</AppButton> : null}
-                            {loan.status === 'approved' ? <Link href={`/loans/${loan.id}/disburse`}><AppButton variant="secondary">{t('loans.disburseLoan')}</AppButton></Link> : null}
+                            <AppBadge variant={isClosed ? 'default' : loan.status === 'active' ? 'success' : loan.status === 'defaulted' ? 'danger' : 'warning'}>
+                                {t(`loans.${loan.status}`)}
+                            </AppBadge>
+                            {!isClosed && loan.next_due_installment ? (
+                                <Link href={`/payments/create?installment_id=${loan.next_due_installment.id}`}><AppButton variant="outline">{t('payments.collectPayment')}</AppButton></Link>
+                            ) : null}
+                            {!isClosed && canSettle ? (
+                                <Link href={`/payments/create?loan_id=${loan.id}&payment_mode=full_settlement`}><AppButton>{t('payments.fullSettlement')}</AppButton></Link>
+                            ) : null}
                             <Link href={`/loans/${loan.id}/statement?locale=${locale}`}><AppButton variant="outline">{t('print.loanStatement')}</AppButton></Link>
-                            <Link href={`/documents/create?entity_type=loan&loan_id=${loan.id}`}><AppButton variant="secondary">{t('documents.addDocument')}</AppButton></Link>
-                            <Link href={`/loans/${loan.id}/edit`}><AppButton variant="outline">{t('loans.editLoan')}</AppButton></Link>
+                            <Link href={`/loans/${loan.id}/edit`}><AppButton variant="secondary">{t('loans.editLoan')}</AppButton></Link>
                             <AppButton variant="danger" onClick={() => setShowDelete(true)}>{t('loans.deleteLoan')}</AppButton>
                         </div>}
                     />
 
-                    {props.flash?.success ? <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300">{props.flash.success}</div> : null}
-
                     <div className="grid gap-6 xl:grid-cols-3">
                         <div className="space-y-6 xl:col-span-2">
                             <AppCard>
-                                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{t('loans.approvalAndDisbursement')}</h2>
-                                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t('loans.approvalAndDisbursementSubtitle')}</p>
-                                <div className="mt-5 grid gap-5 md:grid-cols-2">
-                                    <DetailItem label={t('loans.approvedAt')} value={loan.approved_at} />
-                                    <DetailItem label={t('loans.approvedBy')} value={loan.approver?.name} />
-                                    <DetailItem label={t('loans.disbursedAt')} value={loan.disbursed_at} />
-                                    <DetailItem label={t('loans.disbursedBy')} value={loan.disburser?.name} />
-                                    <DetailItem label={t('loans.disbursementAmount')} value={loan.disbursement_amount ? money(loan.disbursement_amount, locale) : '-'} />
-                                    <DetailItem label={t('loans.disbursementMethod')} value={loan.disbursement_method ? t(`payments.${loan.disbursement_method}`) : '-'} />
-                                    <DetailItem label={t('loans.disbursementReference')} value={loan.disbursement_reference} />
-                                    <DetailItem label={t('loans.approvalNotes')} value={loan.approval_notes} />
+                                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                                    <div><p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{t('loans.totalPayable')}</p><p className="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-100">{money(loan.financial_summary?.total_payable, locale)}</p></div>
+                                    <div><p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{t('payments.totalPaid')}</p><p className="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-100">{money(loan.financial_summary?.total_paid, locale)}</p></div>
+                                    <div><p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{t('payments.remainingBalance')}</p><p className="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-100">{money(loan.financial_summary?.remaining_balance, locale)}</p></div>
+                                    <div><p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{t('payments.overdueAmount')}</p><p className="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-100">{money(loan.financial_summary?.overdue_amount, locale)}</p></div>
                                 </div>
-                                {loan.disbursement_notes ? (
-                                    <div className="mt-4 rounded-2xl border border-slate-200 p-4 text-sm text-slate-600 dark:border-slate-800 dark:text-slate-300">
-                                        <p className="font-medium text-slate-900 dark:text-slate-100">{t('loans.disbursementNotes')}</p>
-                                        <p className="mt-2">{loan.disbursement_notes}</p>
+                            </AppCard>
+
+                            <AppCard>
+                                <div className="flex flex-wrap items-start justify-between gap-4">
+                                    <div>
+                                        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{t('payments.collectionOverview')}</h2>
+                                        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{isClosed ? t('loans.closedLoanHint') : t('payments.collectionOverviewHint')}</p>
                                     </div>
+                                    {loan.next_due_installment ? <AppBadge variant="warning">#{loan.next_due_installment.installment_no}</AppBadge> : null}
+                                </div>
+                                <div className="mt-5 grid gap-5 md:grid-cols-3">
+                                    <DetailItem label={t('payments.nextDue')} value={loan.financial_summary?.next_due_date} />
+                                    <DetailItem label={t('payments.nextDueAmount')} value={money(loan.financial_summary?.next_due_amount, locale)} />
+                                    <DetailItem label={t('payments.openInstallments')} value={String(loan.installment_summary?.open ?? 0)} />
+                                </div>
+                                {isClosed ? (
+                                    <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/20 dark:text-emerald-200">{t('loans.loanClosedMessage')}</div>
                                 ) : null}
                             </AppCard>
 
@@ -89,6 +99,46 @@ export default function LoansShow({ loan }) {
                             </AppCard>
 
                             <AppCard>
+                                <div className="flex flex-wrap items-center justify-between gap-4">
+                                    <div>
+                                        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{t('print.installmentSchedule')}</h2>
+                                        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t('installments.scheduleSubtitle')}</p>
+                                    </div>
+                                    {loan.installment_summary?.count ? (
+                                        <Link href={`/loans/${loan.id}/installments`}><AppButton variant="outline" size="sm">{t('installments.viewSchedule')}</AppButton></Link>
+                                    ) : (
+                                        <Link href={`/installments/create?loan_id=${loan.id}`}><AppButton size="sm">{t('installments.generateInstallments')}</AppButton></Link>
+                                    )}
+                                </div>
+                                <div className="mt-4 grid gap-4 md:grid-cols-5">
+                                    <div><p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{t('installments.totalInstallments')}</p><p className="mt-2 text-xl font-semibold text-slate-900 dark:text-slate-100">{loan.installment_summary?.count ?? 0}</p></div>
+                                    <div><p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{t('installments.pending')}</p><p className="mt-2 text-xl font-semibold text-slate-900 dark:text-slate-100">{loan.installment_summary?.pending ?? 0}</p></div>
+                                    <div><p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{t('installments.partial')}</p><p className="mt-2 text-xl font-semibold text-slate-900 dark:text-slate-100">{loan.installment_summary?.partial ?? 0}</p></div>
+                                    <div><p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{t('installments.overdue')}</p><p className="mt-2 text-xl font-semibold text-slate-900 dark:text-slate-100">{loan.installment_summary?.overdue ?? 0}</p></div>
+                                    <div><p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{t('installments.paidLabel')}</p><p className="mt-2 text-xl font-semibold text-slate-900 dark:text-slate-100">{loan.installment_summary?.paid ?? 0}</p></div>
+                                </div>
+                            </AppCard>
+
+                            <AppCard>
+                                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{t('payments.recentPayments')}</h2>
+                                <div className="mt-4 space-y-3">
+                                    {loan.recent_payments?.length ? loan.recent_payments.map((payment) => (
+                                        <div key={payment.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
+                                            <div className="min-w-0">
+                                                <p className="font-medium text-slate-900 dark:text-slate-100">{payment.payment_code}</p>
+                                                <p className="text-sm text-slate-500 dark:text-slate-400">{payment.payment_date} • {t(`payments.${payment.payment_method}`)}</p>
+                                            </div>
+                                            <div className="flex flex-wrap items-center gap-3">
+                                                <AppBadge variant={payment.payment_type === 'full_settlement' ? 'warning' : 'success'}>{payment.payment_type === 'full_settlement' ? t('payments.fullSettlement') : t('payments.regularCollection')}</AppBadge>
+                                                <p className="font-semibold text-slate-900 dark:text-slate-100">{money(payment.amount, locale)}</p>
+                                                <Link href={`/payments/${payment.id}`}><AppButton variant="outline" size="sm">{t('payments.viewPayment')}</AppButton></Link>
+                                            </div>
+                                        </div>
+                                    )) : <EmptyState title={t('payments.noPayments')} description={t('payments.receiptSubtitle')} />}
+                                </div>
+                            </AppCard>
+
+                            <AppCard>
                                 <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{t('loans.guarantorCoverage')}</h2>
                                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t('loans.guarantorCoverageSubtitle')}</p>
                                 <div className="mt-5">
@@ -97,7 +147,7 @@ export default function LoansShow({ loan }) {
                                             {loan.guarantors.map((guarantor) => (
                                                 <div key={guarantor.id} className="rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
                                                     <div className="flex flex-wrap items-center justify-between gap-3">
-                                                        <div>
+                                                        <div className="min-w-0">
                                                             <p className="font-medium text-slate-900 dark:text-slate-100">{guarantor.name}</p>
                                                             <p className="text-sm text-slate-500 dark:text-slate-400">{guarantor.guarantor_code} • {guarantor.phone}</p>
                                                             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{guarantor.relationship || '-'}</p>
@@ -114,29 +164,6 @@ export default function LoansShow({ loan }) {
                                         <EmptyState title={t('loans.noGuarantorsLinked')} description={t('loans.guarantorCoverageSubtitle')} />
                                     )}
                                 </div>
-                            </AppCard>
-
-                            <AppCard>
-                                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{t('print.installmentSchedule')}</h2>
-                                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t('installments.scheduleSubtitle')}</p>
-                                <div className="mt-4 flex items-center justify-between gap-4">
-                                    <div className="grid gap-4 md:grid-cols-4 flex-1">
-                                        <div><p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{t('installments.totalInstallments')}</p><p className="mt-2 text-xl font-semibold text-slate-900 dark:text-slate-100">{loan.installment_summary?.count ?? 0}</p></div>
-                                        <div><p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{t('installments.pending')}</p><p className="mt-2 text-xl font-semibold text-slate-900 dark:text-slate-100">{loan.installment_summary?.pending ?? 0}</p></div>
-                                        <div><p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{t('installments.paidLabel')}</p><p className="mt-2 text-xl font-semibold text-slate-900 dark:text-slate-100">{loan.installment_summary?.paid ?? 0}</p></div>
-                                        <div><p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">{t('payments.dueDate')}</p><p className="mt-2 text-xl font-semibold text-slate-900 dark:text-slate-100">{loan.installment_summary?.next_due_date ?? '-'}</p></div>
-                                    </div>
-                                    {loan.installment_summary?.count ? (
-                                        <Link href={`/loans/${loan.id}/installments`}><AppButton variant="outline" size="sm">{t('installments.viewSchedule')}</AppButton></Link>
-                                    ) : (
-                                        <Link href={`/installments/create?loan_id=${loan.id}`}><AppButton size="sm">{t('installments.generateInstallments')}</AppButton></Link>
-                                    )}
-                                </div>
-                            </AppCard>
-
-                            <AppCard>
-                                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{t('loans.notes')}</h2>
-                                <p className="mt-3 text-sm text-slate-700 dark:text-slate-300">{loan.notes || '-'}</p>
                             </AppCard>
                         </div>
 

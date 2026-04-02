@@ -16,8 +16,8 @@ class SettingsController extends Controller
 
         return Inertia::render('settings/index', [
             'settings' => [
-                'organization_name_en' => Setting::get('organization_name_en', Setting::get('app_name', 'Somiti Manager')),
-                'organization_name_bn' => Setting::get('organization_name_bn', 'সমিতি ম্যানেজার'),
+                'organization_name_en' => Setting::get('organization_name_en', Setting::get('app_name', 'Pachbaria Swapnasiri Foundation')),
+                'organization_name_bn' => Setting::get('organization_name_bn', 'পাচবাড়িয়া স্বপ্নসিঁড়ি ফাউন্ডেশন'),
                 'organization_address_en' => Setting::get('organization_address_en', ''),
                 'organization_address_bn' => Setting::get('organization_address_bn', ''),
                 'organization_phone' => Setting::get('organization_phone', ''),

@@ -15,6 +15,7 @@ function DetailRow({ label, value }) {
 
 export default function PaymentReceiptPage({ payment, organization, meta, pdfDownloadUrl, backHref }) {
     const { t, locale } = useLocale();
+    const tr = (en, bn) => (locale === 'bn' ? bn : en);
 
     return (
         <>
@@ -56,7 +57,9 @@ export default function PaymentReceiptPage({ payment, organization, meta, pdfDow
                             <h2 className="mb-3 text-base font-semibold">{t('payments.paymentDetails')}</h2>
                             <DetailRow label={t('payments.amount')} value={money(payment.amount, locale)} />
                             <DetailRow label={t('payments.paymentMethod')} value={payment.payment_method_label || (payment.payment_method ? t(`payments.${payment.payment_method}`) : '-')} />
+                            <DetailRow label={t('payments.paymentMode')} value={payment.payment_type_label || '-'} />
                             <DetailRow label={t('payments.referenceNo')} value={payment.reference_no} />
+                            <DetailRow label={t('payments.batchReference')} value={payment.batch_reference} />
                             <DetailRow label={t('payments.collectedBy')} value={payment.collector?.name || meta?.prepared_by} />
                         </div>
                     </div>
@@ -66,8 +69,34 @@ export default function PaymentReceiptPage({ payment, organization, meta, pdfDow
                         <DetailRow label={t('payments.installmentAmount')} value={money(payment.installment?.installment_amount, locale)} />
                         <DetailRow label={t('payments.totalPaidOnInstallment')} value={money(payment.installment?.paid_amount, locale)} />
                         <DetailRow label={t('payments.installmentStatus')} value={payment.installment?.status_label || (payment.installment?.status ? t(`installments.${payment.installment.status}`) : '-')} />
+                        <DetailRow label={tr('Paid for installment', 'যে কিস্তির জন্য পরিশোধ করা হয়েছে')} value={payment.installment ? `#${payment.installment.installment_no}` : '-'} />
+                        <DetailRow label={t('payments.receiptAndProof')} value={payment.reference_no || payment.batch_reference} />
                         <DetailRow label={t('payments.notes')} value={payment.notes} />
                     </div>
+
+                    {payment.loan_summary ? (
+                        <div className="mt-6 grid gap-6 md:grid-cols-2">
+                            <div className="rounded-2xl border border-slate-200 p-4 print:border-slate-300">
+                                <h2 className="mb-3 text-base font-semibold">{tr('Installment Progress', 'কিস্তির অগ্রগতি')}</h2>
+                                <DetailRow label={tr('Total installments', 'মোট কিস্তি')} value={payment.loan_summary.total_installments_label} />
+                                <DetailRow label={tr('Completed installments', 'সম্পন্ন কিস্তি')} value={payment.loan_summary.completed_installments_label} />
+                                <DetailRow label={tr('Completed installment numbers', 'যে কিস্তিগুলো সম্পন্ন হয়েছে')} value={payment.loan_summary.completed_installment_numbers} />
+                                <DetailRow label={tr('Due installments left', 'বাকি কিস্তি')} value={payment.loan_summary.open_installments_label} />
+                                <DetailRow label={tr('Due installment numbers', 'যে কিস্তিগুলো এখনো বাকি')} value={payment.loan_summary.open_installment_numbers} />
+                                <DetailRow label={tr('Total due in open installments', 'বাকি কিস্তির মোট বকেয়া')} value={payment.loan_summary.open_installment_outstanding_money} />
+                            </div>
+
+                            <div className="rounded-2xl border border-slate-200 p-4 print:border-slate-300">
+                                <h2 className="mb-3 text-base font-semibold">{tr('Loan Position After Payment', 'পেমেন্টের পর ঋণের অবস্থা')}</h2>
+                                <DetailRow label={tr('Total loan amount', 'মোট ঋণের পরিমাণ')} value={payment.loan_summary.total_loan_amount_money} />
+                                <DetailRow label={tr('Total paid before this payment', 'এই পেমেন্টের আগে মোট পরিশোধ')} value={payment.loan_summary.total_paid_before_payment_money} />
+                                <DetailRow label={tr('Total paid after this payment', 'এই পেমেন্টের পর মোট পরিশোধ')} value={payment.loan_summary.total_paid_after_payment_money} />
+                                <DetailRow label={tr('Total due after payment', 'পেমেন্টের পর মোট বকেয়া')} value={payment.loan_summary.remaining_balance_after_payment_money} />
+                                <DetailRow label={tr('Overdue installments', 'ওভারডিউ কিস্তি')} value={`${payment.loan_summary.overdue_installments_label} · ${payment.loan_summary.overdue_outstanding_money}`} />
+                                <DetailRow label={tr('Next installment', 'পরবর্তী কিস্তি')} value={payment.loan_summary.next_installment_no_label ? `#${payment.loan_summary.next_installment_no_label} · ${payment.loan_summary.next_installment_date} · ${payment.loan_summary.next_installment_amount_money}` : tr('All installments completed', 'সব কিস্তি সম্পন্ন হয়েছে')} />
+                            </div>
+                        </div>
+                    ) : null}
                 </div>
             </div>
         </>

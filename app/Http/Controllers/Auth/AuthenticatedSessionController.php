@@ -20,6 +20,8 @@ class AuthenticatedSessionController extends Controller
             'variant' => 'admin',
             'canResetPassword' => Route::has('password.request'),
             'status' => session('status'),
+            'switchLink' => route('customer.login'),
+            'switchLabel' => __('Customer Portal'),
         ]);
     }
 
@@ -29,6 +31,8 @@ class AuthenticatedSessionController extends Controller
             'variant' => 'customer',
             'canResetPassword' => false,
             'status' => session('status'),
+            'switchLink' => route('login'),
+            'switchLabel' => __('Admin Login'),
         ]);
     }
 
@@ -50,9 +54,7 @@ class AuthenticatedSessionController extends Controller
         $user = $request->user();
 
         if ($customerOnly && ! $user->hasRole('customer')) {
-            Auth::guard('web')->logout();
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
+            $this->logoutAndInvalidate($request);
 
             throw ValidationException::withMessages([
                 'login' => __('Only customer portal accounts can sign in here.'),
@@ -60,9 +62,7 @@ class AuthenticatedSessionController extends Controller
         }
 
         if (! $user->is_active) {
-            Auth::guard('web')->logout();
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
+            $this->logoutAndInvalidate($request);
 
             throw ValidationException::withMessages([
                 $customerOnly ? 'login' : 'email' => __('Your account is inactive.'),
@@ -70,9 +70,7 @@ class AuthenticatedSessionController extends Controller
         }
 
         if ($user->hasRole('customer') && ! $user->portal_access_enabled) {
-            Auth::guard('web')->logout();
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
+            $this->logoutAndInvalidate($request);
 
             throw ValidationException::withMessages([
                 $customerOnly ? 'login' : 'email' => __('Your portal access is disabled. Please contact the somiti office.'),
@@ -100,5 +98,12 @@ class AuthenticatedSessionController extends Controller
         $request->session()->regenerateToken();
 
         return redirect('/');
+    }
+
+    private function logoutAndInvalidate(Request $request): void
+    {
+        Auth::guard('web')->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
     }
 }

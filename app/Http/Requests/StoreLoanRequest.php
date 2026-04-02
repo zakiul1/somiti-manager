@@ -25,7 +25,7 @@ class StoreLoanRequest extends FormRequest
             'collection_frequency' => ['required', Rule::in(['daily', 'weekly', 'monthly'])],
             'start_date' => ['required', 'date'],
             'first_collection_date' => ['nullable', 'date', 'after_or_equal:start_date'],
-            'status' => ['required', Rule::in(['draft', 'approved', 'active', 'closed', 'defaulted'])],
+            'status' => ['required', Rule::in(['active', 'closed', 'defaulted'])],
             'assigned_staff_id' => ['nullable', 'integer', 'exists:users,id'],
             'notes' => ['nullable', 'string', 'max:2000'],
         ];

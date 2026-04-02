@@ -6,7 +6,7 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot } from 'react-dom/client';
 import { AppPreferencesProvider } from '@/providers/app-preferences-provider';
 
-const appName = import.meta.env.VITE_APP_NAME || 'Somiti Manager';
+const appName = import.meta.env.VITE_APP_NAME || 'Pachbaria Swapnasiri Foundation';
 
 createInertiaApp({
     title: (title) => `${title} - ${appName}`,
@@ -21,7 +21,10 @@ createInertiaApp({
         const appProps = props.initialPage?.props?.app ?? {};
 
         root.render(
-            <AppPreferencesProvider initialLocale={appProps.locale ?? 'en'} initialTheme={appProps.theme ?? 'light'}>
+            <AppPreferencesProvider
+                initialLocale={appProps.locale ?? 'en'}
+                initialTheme={appProps.theme ?? 'light'}
+            >
                 <App {...props} />
             </AppPreferencesProvider>,
         );

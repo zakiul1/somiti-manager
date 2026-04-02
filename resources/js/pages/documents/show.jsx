@@ -78,7 +78,7 @@ export default function DocumentsShow({ document }) {
                                     {document.loan ? (
                                         <div className="rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
                                             <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{document.loan.loan_code}</p>
-                                            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{document.loan.status}</p>
+                                            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t(`loans.${document.loan.status}`)}</p>
                                             <Link href={`/loans/${document.loan.id}`} className="mt-3 inline-block text-sm text-indigo-600 dark:text-indigo-400">{t('documents.openLoan')}</Link>
                                         </div>
                                     ) : null}

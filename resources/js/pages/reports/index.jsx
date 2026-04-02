@@ -100,8 +100,6 @@ export default function ReportsIndex({
                             <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">{t('reports.loanStatusFilter')}</label>
                             <AppSelect name="loan_status" defaultValue={filters.loan_status || ''}>
                                 <option value="">{t('reports.allStatuses')}</option>
-                                <option value="draft">{t('loans.draft')}</option>
-                                <option value="approved">{t('loans.approved')}</option>
                                 <option value="active">{t('loans.active')}</option>
                                 <option value="closed">{t('loans.closed')}</option>
                                 <option value="defaulted">{t('loans.defaulted')}</option>
@@ -119,6 +117,7 @@ export default function ReportsIndex({
                         <StatCard title={t('reports.collectionRate')} value={`${numberFormat(summary.collection_rate_in_range, locale)}%`} hint={t('reports.collectionRateHint')} />
                         <StatCard title={t('reports.outstandingOverall')} value={money(summary.outstanding_overall, locale)} hint={t('reports.outstandingOverallHint')} />
                         <StatCard title={t('reports.paymentsInRange')} value={numberFormat(summary.payment_count_in_range, locale)} hint={t('reports.paymentsInRangeHint')} />
+                        <StatCard title={t('reports.settlementPayments')} value={numberFormat(summary.settlement_count_in_range, locale)} hint={money(summary.settlement_amount_in_range, locale)} />
                         <StatCard title={t('reports.overdueInstallments')} value={numberFormat(summary.overdue_count, locale)} hint={t('reports.overdueInstallmentsHint')} />
                         <StatCard title={t('reports.disbursedInRange')} value={money(summary.disbursed_in_range, locale)} hint={t('reports.disbursedInRangeHint')} />
                         <StatCard title={t('reports.disbursementCount')} value={numberFormat(summary.disbursement_count_in_range, locale)} hint={t('reports.disbursementCountHint')} />
@@ -153,7 +152,7 @@ export default function ReportsIndex({
                                                 <div>
                                                     <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{payment.payment_code}</p>
                                                     <p className="text-xs text-slate-500 dark:text-slate-400">{payment.customer?.name} · {payment.loan?.loan_code}</p>
-                                                    <p className="text-xs text-slate-500 dark:text-slate-400">{payment.collector?.name || '-'}</p>
+                                                    <p className="text-xs text-slate-500 dark:text-slate-400">{payment.collector?.name || '-'} · {payment.payment_type === 'full_settlement' ? t('payments.fullSettlement') : t('payments.regularCollection')}</p>
                                                 </div>
                                                 <div className="text-right">
                                                     <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{money(payment.amount, locale)}</p>

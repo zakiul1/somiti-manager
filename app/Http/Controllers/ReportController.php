@@ -111,6 +111,7 @@ class ReportController extends Controller
                     'name' => $payment->collector->name,
                 ] : null,
                 'payment_method' => $payment->payment_method,
+                'payment_type' => $payment->payment_type ?: 'regular',
             ])
             ->values();
 

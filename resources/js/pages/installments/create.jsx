@@ -45,10 +45,10 @@ export default function InstallmentsCreate({ loans, selectedLoan }) {
                             </div>
                             {activeLoan ? (
                                 <div className="grid gap-4 md:grid-cols-4 text-sm">
-                                    <div><p className="text-slate-500 dark:text-slate-400">Customer</p><p className="mt-1 font-medium text-slate-900 dark:text-slate-100">{activeLoan.customer?.name}</p></div>
-                                    <div><p className="text-slate-500 dark:text-slate-400">Principal</p><p className="mt-1 font-medium text-slate-900 dark:text-slate-100">{activeLoan.principal_amount}</p></div>
-                                    <div><p className="text-slate-500 dark:text-slate-400">Total</p><p className="mt-1 font-medium text-slate-900 dark:text-slate-100">{activeLoan.total_payable}</p></div>
-                                    <div><p className="text-slate-500 dark:text-slate-400">Frequency</p><p className="mt-1 font-medium text-slate-900 dark:text-slate-100">{activeLoan.collection_frequency}</p></div>
+                                    <div><p className="text-slate-500 dark:text-slate-400">{t('installments.customer')}</p><p className="mt-1 font-medium text-slate-900 dark:text-slate-100">{activeLoan.customer?.name}</p></div>
+                                    <div><p className="text-slate-500 dark:text-slate-400">{t('installments.principal')}</p><p className="mt-1 font-medium text-slate-900 dark:text-slate-100">{activeLoan.principal_amount}</p></div>
+                                    <div><p className="text-slate-500 dark:text-slate-400">{t('installments.totalPayable')}</p><p className="mt-1 font-medium text-slate-900 dark:text-slate-100">{activeLoan.total_payable}</p></div>
+                                    <div><p className="text-slate-500 dark:text-slate-400">{t('installments.frequency')}</p><p className="mt-1 font-medium text-slate-900 dark:text-slate-100">{activeLoan.collection_frequency}</p></div>
                                 </div>
                             ) : null}
                         </AppCard>

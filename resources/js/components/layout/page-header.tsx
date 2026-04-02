@@ -29,8 +29,8 @@ export function PageHeader({ title, description, actions, showBackButton }: Page
     }, [showBackButton, url]);
 
     return (
-        <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
+        <div className="mb-6 flex min-w-0 flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div className="min-w-0">
                 {shouldShowBackButton ? (
                     <AppButton
                         variant="ghost"
@@ -42,11 +42,11 @@ export function PageHeader({ title, description, actions, showBackButton }: Page
                         {t('common.back')}
                     </AppButton>
                 ) : null}
-                <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{title}</h1>
-                {description ? <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{description}</p> : null}
+                <h1 className="break-words text-2xl font-bold text-slate-900 dark:text-slate-100">{title}</h1>
+                {description ? <p className="mt-1 break-words text-sm text-slate-500 dark:text-slate-400">{description}</p> : null}
             </div>
 
-            {actions ? <div>{actions}</div> : null}
+            {actions ? <div className="min-w-0 max-w-full">{actions}</div> : null}
         </div>
     );
 }

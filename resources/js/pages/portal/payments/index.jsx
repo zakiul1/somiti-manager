@@ -25,35 +25,32 @@ export default function PortalPaymentsIndex({ summary, filters, payments }) {
                             <option value="mobile_banking">{t('payments.mobileBanking')}</option>
                         </select>
                     </div>
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full text-sm">
-                            <thead>
-                                <tr className="border-b border-slate-200 text-left text-slate-500 dark:border-slate-800 dark:text-slate-400">
-                                    <th className="px-3 py-3">{t('payments.paymentCode')}</th>
-                                    <th className="px-3 py-3">{t('loans.loanCode')}</th>
-                                    <th className="px-3 py-3">{t('installments.installmentNo')}</th>
-                                    <th className="px-3 py-3">{t('payments.paymentDate')}</th>
-                                    <th className="px-3 py-3">{t('payments.paymentMethod')}</th>
-                                    <th className="px-3 py-3">{t('payments.amount')}</th>
-                                    <th className="px-3 py-3">{t('common.actions')}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {payments.length ? payments.map((item) => (
-                                    <tr key={item.id} className="border-b border-slate-100 dark:border-slate-900">
-                                        <td className="px-3 py-3 font-medium text-slate-900 dark:text-slate-100">{item.payment_code}</td>
-                                        <td className="px-3 py-3 text-slate-600 dark:text-slate-300">{item.loan_code}</td>
-                                        <td className="px-3 py-3 text-slate-600 dark:text-slate-300">#{item.installment_no}</td>
-                                        <td className="px-3 py-3 text-slate-600 dark:text-slate-300">{formatDate(item.payment_date, locale)}</td>
-                                        <td className="px-3 py-3 text-slate-600 dark:text-slate-300">{item.payment_method || '-'}</td>
-                                        <td className="px-3 py-3 text-slate-600 dark:text-slate-300">{formatMoney(item.amount, locale)}</td>
-                                        <td className="px-3 py-3">
-                                            <Link href={route('print.payment-receipt', { payment: item.id, locale })} className="inline-flex rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700">{t('portal.viewReceipt')}</Link>
-                                        </td>
-                                    </tr>
-                                )) : <tr><td className="px-3 py-8 text-center text-slate-500 dark:text-slate-400" colSpan="7">{t('portal.noPayments')}</td></tr>}
-                            </tbody>
-                        </table>
+                    <div className="space-y-3">
+                        {payments.length ? payments.map((item) => (
+                            <div key={item.id} className="rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
+                                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                    <div className="min-w-0">
+                                        <p className="truncate font-medium text-slate-900 dark:text-slate-100">{item.payment_code}</p>
+                                        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{item.loan_code} • {formatDate(item.payment_date, locale)}</p>
+                                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{t('portal.paymentMode')}: {t(`payments.${item.payment_type === 'full_settlement' ? 'fullSettlement' : 'regularCollection'}`)}</p>
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-3 md:justify-end">
+                                        <div className="text-right">
+                                            <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{formatMoney(item.amount, locale)}</p>
+                                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{item.payment_method || '-'}</p>
+                                        </div>
+                                        <Link href={route('print.payment-receipt', { payment: item.id, locale })} className="inline-flex rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700">{t('portal.viewReceipt')}</Link>
+                                    </div>
+                                </div>
+                                {(item.reference_no || item.batch_reference) ? (
+                                    <div className="mt-3 border-t border-slate-100 pt-3 text-xs text-slate-500 dark:border-slate-900 dark:text-slate-400">
+                                        {item.reference_no ? <span>{t('payments.referenceNo')}: {item.reference_no}</span> : null}
+                                        {item.reference_no && item.batch_reference ? <span> • </span> : null}
+                                        {item.batch_reference ? <span>{t('payments.batchReference')}: {item.batch_reference}</span> : null}
+                                    </div>
+                                ) : null}
+                            </div>
+                        )) : <div className="rounded-2xl border border-dashed border-slate-300 px-4 py-10 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">{t('portal.noPayments')}</div>}
                     </div>
                 </AppCard>
             </div>

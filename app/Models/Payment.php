@@ -21,6 +21,8 @@ class Payment extends Model
         'amount',
         'payment_date',
         'payment_method',
+        'payment_type',
+        'batch_reference',
         'reference_no',
         'notes',
     ];

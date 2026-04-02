@@ -17,7 +17,9 @@ class StorePaymentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'installment_id' => ['required', 'integer', 'exists:installments,id'],
+            'payment_mode' => ['nullable', Rule::in(['regular', 'full_settlement'])],
+            'loan_id' => ['nullable', 'integer', 'exists:loans,id'],
+            'installment_id' => ['required_if:payment_mode,regular', 'nullable', 'integer', 'exists:installments,id'],
             'amount' => ['required', 'numeric', 'min:0.01'],
             'payment_date' => ['required', 'date'],
             'payment_method' => ['required', Rule::in(['cash', 'bank', 'mobile_banking'])],
@@ -30,6 +32,10 @@ class StorePaymentRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator) {
+            if ($this->input('payment_mode', 'regular') !== 'regular') {
+                return;
+            }
+
             $installmentId = (int) $this->input('installment_id');
             $amount = (float) $this->input('amount');
 

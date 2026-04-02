@@ -7,6 +7,7 @@ use App\Http\Requests\UpdateCustomerPortalAccountRequest;
 use App\Models\Customer;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Throwable;
@@ -31,26 +32,29 @@ class CustomerPortalAccountController extends Controller
         abort_if($customer->portalUser, 409, 'Portal account already exists for this customer.');
 
         try {
-            $user = User::create([
-                'customer_id' => $customer->id,
-                'name' => $request->validated('name'),
-                'username' => $this->generateUniqueUsername(
-                    $request->validated('name'),
-                    $customer->customer_code
-                ),
-                'email' => $request->validated('email'),
-                'password' => $request->validated('password'),
-                'is_active' => true,
-                'portal_access_enabled' => (bool) $request->boolean('portal_access_enabled', true),
-            ]);
+            DB::transaction(function () use ($request, $customer) {
+                $name = trim((string) $request->validated('name'));
+                $email = trim((string) $request->validated('email'));
+                $password = $request->validated('password');
 
-            $user->assignRole('customer');
-
-            if (! $customer->email && $user->email) {
-                $customer->update([
-                    'email' => $user->email,
+                $user = User::create([
+                    'customer_id' => $customer->id,
+                    'name' => $name,
+                    'username' => $this->generateUniqueUsername($name, $customer->customer_code),
+                    'email' => $email,
+                    'password' => $password,
+                    'is_active' => true,
+                    'portal_access_enabled' => (bool) $request->boolean('portal_access_enabled', true),
                 ]);
-            }
+
+                $user->assignRole('customer');
+
+                if (blank($customer->email) && filled($user->email)) {
+                    $customer->update([
+                        'email' => $user->email,
+                    ]);
+                }
+            });
 
             return redirect()
                 ->route('customers.show', $customer)
@@ -89,23 +93,34 @@ class CustomerPortalAccountController extends Controller
         abort_unless($customer->portalUser, 404);
 
         try {
-            $payload = [
-                'name' => $request->validated('name'),
-                'email' => $request->validated('email'),
-                'portal_access_enabled' => (bool) $request->boolean('portal_access_enabled', true),
-            ];
+            DB::transaction(function () use ($request, $customer) {
+                $portalUser = $customer->portalUser;
 
-            if ($request->filled('password')) {
-                $payload['password'] = $request->validated('password');
-            }
+                $payload = [
+                    'name' => trim((string) $request->validated('name')),
+                    'email' => trim((string) $request->validated('email')),
+                    'portal_access_enabled' => (bool) $request->boolean('portal_access_enabled', true),
+                ];
 
-            $customer->portalUser->update($payload);
+                if (blank($portalUser->username)) {
+                    $payload['username'] = $this->generateUniqueUsername(
+                        $payload['name'],
+                        $customer->customer_code
+                    );
+                }
 
-            if ($request->filled('email')) {
-                $customer->update([
-                    'email' => $request->validated('email'),
-                ]);
-            }
+                if ($request->filled('password')) {
+                    $payload['password'] = $request->validated('password');
+                }
+
+                $portalUser->update($payload);
+
+                if ($request->filled('email')) {
+                    $customer->update([
+                        'email' => trim((string) $request->validated('email')),
+                    ]);
+                }
+            });
 
             return redirect()
                 ->route('customers.show', $customer)
@@ -132,13 +147,17 @@ class CustomerPortalAccountController extends Controller
         abort_unless($customer->portalUser, 404);
 
         try {
-            $customer->portalUser->update([
-                'portal_access_enabled' => ! $customer->portalUser->portal_access_enabled,
+            $portalUser = $customer->portalUser;
+
+            $portalUser->update([
+                'portal_access_enabled' => ! (bool) $portalUser->portal_access_enabled,
             ]);
 
             return redirect()
                 ->route('customers.show', $customer)
-                ->with('success', __('Customer portal access status updated.'));
+                ->with('success', $portalUser->portal_access_enabled
+                    ? __('Customer portal access enabled successfully.')
+                    : __('Customer portal access disabled successfully.'));
         } catch (Throwable $exception) {
             Log::error('Customer portal access toggle failed.', [
                 'customer_id' => $customer->id,
@@ -163,6 +182,8 @@ class CustomerPortalAccountController extends Controller
             'phone' => $customer->phone,
             'email' => $customer->email,
             'customer_code' => $customer->customer_code,
+            'photo_url' => $customer->photo_url,
+            'status' => $customer->status,
         ];
     }
 
@@ -175,7 +196,8 @@ class CustomerPortalAccountController extends Controller
             'email' => $user->email,
             'login_phone' => $customer->phone,
             'portal_access_enabled' => (bool) $user->portal_access_enabled,
-            'last_login_at' => optional($user->last_login_at)->format('Y-m-d H:i'),
+            'is_active' => (bool) $user->is_active,
+            'last_login_at' => optional($user->last_login_at)?->format('Y-m-d H:i'),
         ];
     }
 

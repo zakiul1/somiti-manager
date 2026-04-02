@@ -3,15 +3,18 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable, HasRoles;
+    use HasFactory;
+    use Notifiable;
+    use HasRoles;
 
     protected $fillable = [
         'customer_id',
@@ -19,6 +22,12 @@ class User extends Authenticatable
         'username',
         'email',
         'password',
+        'phone',
+        'designation',
+        'address',
+        'photo_path',
+        'nid_front_path',
+        'nid_back_path',
         'is_active',
         'portal_access_enabled',
         'last_login_at',
@@ -27,6 +36,13 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+    ];
+
+    protected $appends = [
+        'photo_url',
+        'nid_front_url',
+        'nid_back_url',
+        'display_name',
     ];
 
     protected function casts(): array
@@ -63,5 +79,62 @@ class User extends Authenticatable
     public function activityLogs(): HasMany
     {
         return $this->hasMany(ActivityLog::class, 'actor_id');
+    }
+
+    public function contributionPayments(): HasMany
+    {
+        return $this->hasMany(ContributionPayment::class, 'user_id');
+    }
+
+    public function receivedContributionPayments(): HasMany
+    {
+        return $this->hasMany(ContributionPayment::class, 'received_by');
+    }
+
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
+
+    public function isCustomerPortalUser(): bool
+    {
+        return $this->hasRole('customer');
+    }
+
+    public function isAdminUser(): bool
+    {
+        return $this->hasAnyRole(['super-admin', 'admin']);
+    }
+
+    public function getDisplayNameAttribute(): string
+    {
+        return $this->name ?: $this->email ?: $this->username ?: 'User';
+    }
+
+    public function getPhotoUrlAttribute(): ?string
+    {
+        if (blank($this->photo_path)) {
+            return null;
+        }
+
+        return Storage::disk('public')->url($this->photo_path);
+    }
+
+    public function getNidFrontUrlAttribute(): ?string
+    {
+        if (blank($this->nid_front_path)) {
+            return null;
+        }
+
+        return Storage::disk('public')->url($this->nid_front_path);
+    }
+
+    public function getNidBackUrlAttribute(): ?string
+    {
+        if (blank($this->nid_back_path)) {
+            return null;
+        }
+
+        return Storage::disk('public')->url($this->nid_back_path);
     }
 }

@@ -13,6 +13,16 @@ import { useLocale } from '@/hooks/use-locale';
 
 const money = (value, locale = 'en') => new Intl.NumberFormat(locale === 'bn' ? 'bn-BD' : 'en-BD', { style: 'currency', currency: 'BDT', maximumFractionDigits: 2 }).format(Number(value || 0));
 
+function StatCard({ label, value, hint }) {
+    return (
+        <AppCard>
+            <p className="text-sm text-slate-500 dark:text-slate-400">{label}</p>
+            <p className="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-100">{value}</p>
+            {hint ? <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{hint}</p> : null}
+        </AppCard>
+    );
+}
+
 export default function PaymentsIndex({ payments, filters, stats, collectorOptions = [] }) {
     const { t, locale } = useLocale();
 
@@ -20,6 +30,7 @@ export default function PaymentsIndex({ payments, filters, stats, collectorOptio
         const params = new URLSearchParams();
         if (filters.search) params.set('search', filters.search);
         if (filters.payment_method && filters.payment_method !== 'all') params.set('payment_method', filters.payment_method);
+        if (filters.payment_type && filters.payment_type !== 'all') params.set('payment_type', filters.payment_type);
         if (filters.collector_id && filters.collector_id !== 'all') params.set('collector_id', filters.collector_id);
         if (filters.date_from) params.set('date_from', filters.date_from);
         if (filters.date_to) params.set('date_to', filters.date_to);
@@ -31,7 +42,7 @@ export default function PaymentsIndex({ payments, filters, stats, collectorOptio
     };
 
     const clearFilters = () => {
-        router.get('/payments', { search: '', payment_method: 'all', collector_id: 'all', date_from: '', date_to: '' }, { preserveState: true, replace: true });
+        router.get('/payments', { search: '', payment_method: 'all', payment_type: 'all', collector_id: 'all', date_from: '', date_to: '' }, { preserveState: true, replace: true });
     };
 
     return (
@@ -45,16 +56,28 @@ export default function PaymentsIndex({ payments, filters, stats, collectorOptio
                         actions={<div className="flex flex-wrap gap-2"><a href={exportUrl}><AppButton variant="outline">{t('common.exportCsv')}</AppButton></a><Link href="/payments/create"><AppButton>{t('payments.collectPayment')}</AppButton></Link></div>}
                     />
 
-                    <div className="mb-6 grid gap-4 md:grid-cols-4">
-                        <AppCard><p className="text-sm text-slate-500 dark:text-slate-400">{t('payments.totalPayments')}</p><p className="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-100">{stats.total}</p></AppCard>
-                        <AppCard><p className="text-sm text-slate-500 dark:text-slate-400">{t('payments.totalCollected')}</p><p className="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-100">{money(stats.total_amount, locale)}</p></AppCard>
-                        <AppCard><p className="text-sm text-slate-500 dark:text-slate-400">{t('payments.collectedToday')}</p><p className="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-100">{money(stats.today_amount, locale)}</p></AppCard>
-                        <AppCard><p className="text-sm text-slate-500 dark:text-slate-400">{t('payments.cashPayments')}</p><p className="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-100">{stats.cash_count}</p></AppCard>
+                    <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                        <StatCard label={t('payments.totalCollected')} value={money(stats.total_amount, locale)} hint={t('payments.totalCollectedHint')} />
+                        <StatCard label={t('payments.collectedToday')} value={money(stats.today_amount, locale)} hint={t('payments.collectedTodayHint')} />
+                        <StatCard label={t('payments.collectedThisMonth')} value={money(stats.month_amount, locale)} hint={t('payments.collectedThisMonthHint')} />
+                        <StatCard label={t('payments.settlementAmount')} value={money(stats.settlement_amount, locale)} hint={t('payments.settlementAmountHint')} />
+                    </div>
+
+                    <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                        <StatCard label={t('payments.totalPayments')} value={stats.total} />
+                        <StatCard label={t('payments.regularPayments')} value={stats.regular_count} />
+                        <StatCard label={t('payments.settlementPayments')} value={stats.settlement_count} />
+                        <StatCard label={t('payments.cashPayments')} value={stats.cash_count} />
                     </div>
 
                     <AppCard className="mb-6">
-                        <div className="grid gap-4 md:grid-cols-5">
+                        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
                             <AppInput value={filters.search ?? ''} onChange={(e) => updateFilter('search', e.target.value)} placeholder={t('payments.searchPlaceholder')} />
+                            <AppSelect value={filters.payment_type ?? 'all'} onChange={(e) => updateFilter('payment_type', e.target.value)}>
+                                <option value="all">{t('payments.allPaymentTypes')}</option>
+                                <option value="regular">{t('payments.regularCollection')}</option>
+                                <option value="full_settlement">{t('payments.fullSettlement')}</option>
+                            </AppSelect>
                             <AppSelect value={filters.payment_method ?? 'all'} onChange={(e) => updateFilter('payment_method', e.target.value)}>
                                 <option value="all">{t('payments.allMethods')}</option>
                                 <option value="cash">{t('payments.cash')}</option>
@@ -62,7 +85,7 @@ export default function PaymentsIndex({ payments, filters, stats, collectorOptio
                                 <option value="mobile_banking">{t('payments.mobileBanking')}</option>
                             </AppSelect>
                             <AppSelect value={filters.collector_id ?? 'all'} onChange={(e) => updateFilter('collector_id', e.target.value)}>
-                                <option value="all">{t('staffWorkflow.allStaff')}</option>
+                                <option value="all">{t('staff.allStaff')}</option>
                                 {collectorOptions.map((collector) => <option key={collector.id} value={collector.id}>{collector.name}</option>)}
                             </AppSelect>
                             <AppInput type="date" value={filters.date_from ?? ''} onChange={(e) => updateFilter('date_from', e.target.value)} />
@@ -78,25 +101,52 @@ export default function PaymentsIndex({ payments, filters, stats, collectorOptio
                             <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-800">
                                 <thead className="bg-slate-50 dark:bg-slate-950/50">
                                     <tr>
-                                        {[t('payments.paymentCode'), t('payments.loan'), t('payments.customer'), t('payments.installment'), t('reports.date'), t('payments.paymentMethod'), t('staffWorkflow.collectedBy'), t('payments.amount'), t('customers.actions')].map((header) => (
+                                        {[t('payments.paymentCode'), t('payments.customer'), t('payments.loan'), t('payments.collectionHistory'), t('reports.date'), t('payments.paymentMethod'), t('payments.paymentMode'), t('payments.amount'), t('customers.actions')].map((header) => (
                                             <th key={header} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{header}</th>
                                         ))}
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                                    {payments.data.length ? payments.data.map((payment) => (
-                                        <tr key={payment.id}>
-                                            <td className="px-4 py-3 text-sm font-medium text-slate-900 dark:text-slate-100">{payment.payment_code}</td>
-                                            <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">{payment.loan?.loan_code ?? '-'}</td>
-                                            <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">{payment.customer?.name ?? '-'}</td>
-                                            <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">#{payment.installment?.installment_no ?? '-'}</td>
-                                            <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">{payment.payment_date}</td>
-                                            <td className="px-4 py-3 text-sm"><AppBadge variant={payment.payment_method === 'cash' ? 'success' : payment.payment_method === 'bank' ? 'default' : 'warning'}>{t(`payments.${payment.payment_method}`)}</AppBadge></td>
-                                            <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">{payment.collector ?? '-'}</td>
-                                            <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">{money(payment.amount, locale)}</td>
-                                            <td className="px-4 py-3 text-sm"><Link href={`/payments/${payment.id}`} className="text-indigo-600 dark:text-indigo-400">{t('payments.viewPayment')}</Link></td>
-                                        </tr>
-                                    )) : (
+                                    {payments.data.length ? payments.data.map((payment) => {
+                                        const isSettlement = payment.payment_type === 'full_settlement';
+                                        return (
+                                            <tr key={payment.id} className="align-top">
+                                                <td className="px-4 py-3 text-sm font-medium text-slate-900 dark:text-slate-100">
+                                                    <div className="space-y-1">
+                                                        <div>{payment.payment_code}</div>
+                                                        {payment.reference_no ? <div className="text-xs text-slate-500 dark:text-slate-400">{t('payments.referenceNo')}: {payment.reference_no}</div> : null}
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">
+                                                    <div className="space-y-1">
+                                                        <div className="font-medium text-slate-900 dark:text-slate-100">{payment.customer?.name ?? '-'}</div>
+                                                        <div className="text-xs text-slate-500 dark:text-slate-400">{payment.customer?.customer_code ?? '-'}</div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">{payment.loan?.loan_code ?? '-'}</td>
+                                                <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">
+                                                    <div className="space-y-2">
+                                                        {payment.installment?.installment_no ? <div className="text-xs">{t('payments.installment')}: #{payment.installment.installment_no}</div> : null}
+                                                        {payment.installment?.due_date ? <div className="text-xs text-slate-500 dark:text-slate-400">{t('payments.dueDate')}: {payment.installment.due_date}</div> : null}
+                                                        <div className="flex flex-wrap gap-2">
+                                                            <AppBadge variant={isSettlement ? 'warning' : 'success'}>{isSettlement ? t('payments.fullSettlement') : t('payments.regularCollection')}</AppBadge>
+                                                            {payment.collector ? <AppBadge variant="default">{payment.collector}</AppBadge> : null}
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-300">{payment.payment_date}</td>
+                                                <td className="px-4 py-3 text-sm"><AppBadge variant={payment.payment_method === 'cash' ? 'success' : payment.payment_method === 'bank' ? 'default' : 'warning'}>{t(`payments.${payment.payment_method}`)}</AppBadge></td>
+                                                <td className="px-4 py-3 text-sm"><AppBadge variant={isSettlement ? 'warning' : 'default'}>{isSettlement ? t('payments.fullSettlement') : t('payments.regularCollection')}</AppBadge></td>
+                                                <td className="px-4 py-3 text-sm font-medium text-slate-900 dark:text-slate-100">{money(payment.amount, locale)}</td>
+                                                <td className="px-4 py-3 text-sm">
+                                                    <div className="flex flex-wrap gap-2">
+                                                        <Link href={`/payments/${payment.id}`} className="text-indigo-600 dark:text-indigo-400">{t('payments.viewPayment')}</Link>
+                                                        <Link href={route('print.payment-receipt', { payment: payment.id, locale })} className="text-slate-600 dark:text-slate-300">{t('payments.viewReceipt')}</Link>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    }) : (
                                         <tr><td colSpan="9" className="px-4 py-10 text-center text-sm text-slate-500 dark:text-slate-400">{t('payments.noPayments')}</td></tr>
                                     )}
                                 </tbody>

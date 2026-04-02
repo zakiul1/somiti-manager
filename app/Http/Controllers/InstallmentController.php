@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreInstallmentBatchRequest;
+use App\Models\Customer;
 use App\Models\Installment;
 use App\Models\Loan;
 use App\Services\AuditLogService;
@@ -17,92 +18,218 @@ use Inertia\Response;
 
 class InstallmentController extends Controller
 {
-    
-public function index(Request $request): Response
-{
-    $search = trim((string) $request->string('search'));
-    $status = (string) $request->string('status', 'all');
-        $dateFrom = trim((string) $request->string('date_from'));
-        $dateTo = trim((string) $request->string('date_to'));
-    $dateFrom = trim((string) $request->string('date_from'));
-    $dateTo = trim((string) $request->string('date_to'));
-
-    $installments = Installment::query()
-        ->with(['loan:id,loan_code', 'customer:id,name,customer_code'])
-        ->when($search !== '', function ($builder) use ($search) {
-            $builder->where(function ($nested) use ($search) {
-                $nested
-                    ->whereHas('loan', fn ($loanQuery) => $loanQuery->where('loan_code', 'like', "%{$search}%"))
-                    ->orWhereHas('customer', fn ($customerQuery) => $customerQuery
-                        ->where('name', 'like', "%{$search}%")
-                        ->orWhere('customer_code', 'like', "%{$search}%"));
-            });
-        })
-        ->when(in_array($status, ['pending', 'partial', 'paid', 'overdue'], true), function ($builder) use ($status) {
-            $builder->where('status', $status);
-        })
-        ->when($dateFrom !== '', fn ($builder) => $builder->whereDate('due_date', '>=', $dateFrom))
-        ->when($dateTo !== '', fn ($builder) => $builder->whereDate('due_date', '<=', $dateTo))
-        ->orderBy('due_date')
-        ->paginate(12)
-        ->withQueryString()
-        ->through(fn (Installment $installment) => [
-            'id' => $installment->id,
-            'installment_no' => $installment->installment_no,
-            'due_date' => $installment->due_date?->format('Y-m-d'),
-            'principal_component' => (float) $installment->principal_component,
-            'interest_component' => (float) $installment->interest_component,
-            'installment_amount' => (float) $installment->installment_amount,
-            'paid_amount' => (float) $installment->paid_amount,
-            'status' => $installment->status,
-            'loan' => $installment->loan ? [
-                'id' => $installment->loan->id,
-                'loan_code' => $installment->loan->loan_code,
-            ] : null,
-            'customer' => $installment->customer ? [
-                'id' => $installment->customer->id,
-                'name' => $installment->customer->name,
-                'customer_code' => $installment->customer->customer_code,
-            ] : null,
-        ]);
-
-    return Inertia::render('installments/index', [
-        'installments' => $installments,
-        'filters' => [
-            'search' => $search,
-            'status' => $status,
-            'date_from' => $dateFrom,
-            'date_to' => $dateTo,
-        ],
-        'stats' => [
-            'total' => Installment::count(),
-            'pending' => Installment::where('status', 'pending')->count(),
-            'paid' => Installment::where('status', 'paid')->count(),
-            'overdue' => Installment::where('status', 'overdue')->count(),
-        ],
-    ]);
-}
-
-
-public function export(Request $request)
+    public function index(Request $request): Response
     {
         $search = trim((string) $request->string('search'));
         $status = (string) $request->string('status', 'all');
+        $dateFrom = trim((string) $request->string('date_from'));
+        $dateTo = trim((string) $request->string('date_to'));
+        $tab = (string) $request->string('tab', 'overview');
 
-        $rows = Installment::query()
+        $installmentsQuery = $this->filteredInstallmentQuery($search, $status, $dateFrom, $dateTo);
+
+        $installments = $installmentsQuery
+            ->orderBy('due_date')
+            ->paginate(12)
+            ->withQueryString()
+            ->through(fn (Installment $installment) => $this->installmentListItem($installment));
+
+        $overdueItems = Installment::query()
             ->with(['loan:id,loan_code', 'customer:id,name,customer_code'])
-            ->when($search !== '', function ($builder) use ($search) {
-                $builder->where(function ($nested) use ($search) {
+            ->overdue()
+            ->orderBy('due_date')
+            ->limit(8)
+            ->get()
+            ->map(fn (Installment $installment) => $this->installmentListItem($installment))
+            ->values();
+
+        $dueTodayItems = Installment::query()
+            ->with(['loan:id,loan_code', 'customer:id,name,customer_code'])
+            ->dueToday()
+            ->orderBy('due_date')
+            ->limit(8)
+            ->get()
+            ->map(fn (Installment $installment) => $this->installmentListItem($installment))
+            ->values();
+
+        $upcomingItems = Installment::query()
+            ->with(['loan:id,loan_code', 'customer:id,name,customer_code'])
+            ->upcoming(7)
+            ->orderBy('due_date')
+            ->limit(8)
+            ->get()
+            ->map(fn (Installment $installment) => $this->installmentListItem($installment))
+            ->values();
+
+        return Inertia::render('installments/index', [
+            'installments' => $installments,
+            'filters' => [
+                'search' => $search,
+                'status' => $status,
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
+                'tab' => in_array($tab, ['overview', 'due', 'all'], true) ? $tab : 'overview',
+            ],
+            'stats' => [
+                'total' => Installment::count(),
+                'pending' => Installment::pending()->count(),
+                'paid' => Installment::paid()->count(),
+                'overdue' => Installment::overdue()->count(),
+                'due_today' => Installment::dueToday()->count(),
+                'upcoming' => Installment::upcoming(7)->count(),
+                'customers_with_open' => Installment::open()->distinct('customer_id')->count('customer_id'),
+            ],
+            'overview' => [
+                'overdue_items' => $overdueItems,
+                'due_today_items' => $dueTodayItems,
+                'upcoming_items' => $upcomingItems,
+            ],
+        ]);
+    }
+
+    public function customers(Request $request): Response
+    {
+        $search = trim((string) $request->string('search'));
+
+        $customers = Customer::query()
+            ->withCount([
+                'loans as active_loans_count' => fn ($query) => $query->where('status', 'active'),
+                'installments as pending_installments_count' => fn ($query) => $query->whereIn('status', ['pending', 'partial', 'overdue']),
+                'installments as overdue_installments_count' => fn ($query) => $query->overdue(),
+            ])
+            ->withSum([
+                'installments as overdue_installments_sum_installment_amount' => fn ($query) => $query->overdue(),
+            ], 'installment_amount')
+            ->with([
+                'installments' => fn ($query) => $query
+                    ->whereIn('status', ['pending', 'partial', 'overdue'])
+                    ->orderBy('due_date')
+                    ->select('id', 'customer_id', 'due_date'),
+                'payments' => fn ($query) => $query
+                    ->latest('payment_date')
+                    ->limit(1)
+                    ->select('id', 'customer_id', 'payment_date'),
+            ])
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($nested) use ($search) {
                     $nested
-                        ->whereHas('loan', fn ($loanQuery) => $loanQuery->where('loan_code', 'like', "%{$search}%"))
-                        ->orWhereHas('customer', fn ($customerQuery) => $customerQuery
-                            ->where('name', 'like', "%{$search}%")
-                            ->orWhere('customer_code', 'like', "%{$search}%"));
+                        ->where('name', 'like', "%{$search}%")
+                        ->orWhere('customer_code', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%");
                 });
             })
-            ->when(in_array($status, ['pending', 'partial', 'paid', 'overdue'], true), fn ($builder) => $builder->where('status', $status))
-            ->when($dateFrom !== '', fn ($builder) => $builder->whereDate('due_date', '>=', $dateFrom))
-            ->when($dateTo !== '', fn ($builder) => $builder->whereDate('due_date', '<=', $dateTo))
+            ->whereHas('installments')
+            ->orderByDesc('overdue_installments_count')
+            ->orderBy('name')
+            ->paginate(12)
+            ->withQueryString()
+            ->through(function (Customer $customer) {
+                $nextDue = $customer->installments->sortBy('due_date')->first();
+                $lastPayment = $customer->payments->first();
+
+                return [
+                    'id' => $customer->id,
+                    'name' => $customer->name,
+                    'customer_code' => $customer->customer_code,
+                    'phone' => $customer->phone,
+                    'status' => $customer->status,
+                    'active_loans_count' => $customer->active_loans_count,
+                    'pending_installments_count' => $customer->pending_installments_count,
+                    'overdue_installments_count' => $customer->overdue_installments_count,
+                    'overdue_amount' => (float) ($customer->overdue_installments_sum_installment_amount ?? 0),
+                    'next_due_date' => $nextDue?->due_date?->format('Y-m-d'),
+                    'last_payment_date' => $lastPayment?->payment_date?->format('Y-m-d'),
+                ];
+            });
+
+        return Inertia::render('installments/customers', [
+            'customers' => $customers,
+            'filters' => [
+                'search' => $search,
+            ],
+        ]);
+    }
+
+    public function customerShow(Customer $customer): Response
+    {
+        $customer->load([
+            'loans' => fn ($query) => $query
+                ->with(['installments' => fn ($installments) => $installments->orderBy('installment_no')])
+                ->orderByDesc('id'),
+            'payments' => fn ($query) => $query->latest('payment_date')->limit(10),
+        ]);
+
+        $loans = $customer->loans->map(function (Loan $loan) {
+            $installments = $loan->installments;
+            $openInstallments = $installments->whereIn('status', ['pending', 'partial', 'overdue']);
+            $nextDue = $openInstallments->sortBy('due_date')->first();
+            $overdueCount = $installments->filter(fn ($item) => in_array($item->status, ['pending', 'partial', 'overdue'], true) && optional($item->due_date)->lt(today()))->count();
+
+            return [
+                'id' => $loan->id,
+                'loan_code' => $loan->loan_code,
+                'status' => $loan->status,
+                'start_date' => $loan->start_date?->format('Y-m-d'),
+                'collection_frequency' => $loan->collection_frequency,
+                'total_payable' => (float) $loan->total_payable,
+                'principal_amount' => (float) $loan->principal_amount,
+                'total_paid' => (float) $installments->sum('paid_amount'),
+                'remaining_balance' => (float) $installments->sum(fn (Installment $item) => max(0, (float) $item->installment_amount - (float) $item->paid_amount)),
+                'overdue_count' => $overdueCount,
+                'open_installments_count' => $openInstallments->count(),
+                'next_due_date' => $nextDue?->due_date?->format('Y-m-d'),
+                'next_due_amount' => $nextDue ? max(0, (float) $nextDue->installment_amount - (float) $nextDue->paid_amount) : 0,
+                'installments' => $installments->map(fn (Installment $installment) => [
+                    'id' => $installment->id,
+                    'installment_no' => $installment->installment_no,
+                    'due_date' => $installment->due_date?->format('Y-m-d'),
+                    'installment_amount' => (float) $installment->installment_amount,
+                    'paid_amount' => (float) $installment->paid_amount,
+                    'outstanding_amount' => max(0, (float) $installment->installment_amount - (float) $installment->paid_amount),
+                    'status' => $installment->status,
+                ])->values(),
+            ];
+        })->values();
+
+        $allInstallments = $customer->loans
+            ->flatMap(fn (Loan $loan) => $loan->installments)
+            ->values();
+
+        $openInstallments = $allInstallments->filter(fn (Installment $item) => in_array($item->status, ['pending', 'partial', 'overdue'], true));
+        $nextDue = $openInstallments->sortBy('due_date')->first();
+        $lastPayment = $customer->payments->first();
+
+        return Inertia::render('installments/customer-show', [
+            'customer' => [
+                'id' => $customer->id,
+                'name' => $customer->name,
+                'customer_code' => $customer->customer_code,
+                'phone' => $customer->phone,
+                'status' => $customer->status,
+                'financial_summary' => [
+                    'total_payable' => (float) $allInstallments->sum('installment_amount'),
+                    'total_paid' => (float) $allInstallments->sum('paid_amount'),
+                    'remaining_balance' => (float) $allInstallments->sum(fn (Installment $item) => max(0, (float) $item->installment_amount - (float) $item->paid_amount)),
+                    'overdue_amount' => (float) $allInstallments->filter(fn (Installment $item) => in_array($item->status, ['pending', 'partial', 'overdue'], true) && optional($item->due_date)->lt(today()))->sum(fn (Installment $item) => max(0, (float) $item->installment_amount - (float) $item->paid_amount)),
+                    'active_loans' => $customer->loans->where('status', 'active')->count(),
+                    'open_installments' => $openInstallments->count(),
+                    'next_due_date' => $nextDue?->due_date?->format('Y-m-d'),
+                    'next_due_amount' => $nextDue ? max(0, (float) $nextDue->installment_amount - (float) $nextDue->paid_amount) : 0,
+                    'last_payment_date' => $lastPayment?->payment_date?->format('Y-m-d'),
+                ],
+            ],
+            'loans' => $loans,
+        ]);
+    }
+
+    public function export(Request $request)
+    {
+        $search = trim((string) $request->string('search'));
+        $status = (string) $request->string('status', 'all');
+        $dateFrom = trim((string) $request->string('date_from'));
+        $dateTo = trim((string) $request->string('date_to'));
+
+        $rows = $this->filteredInstallmentQuery($search, $status, $dateFrom, $dateTo)
             ->orderBy('due_date')
             ->get()
             ->map(fn (Installment $installment) => [
@@ -232,6 +359,55 @@ public function export(Request $request)
                 ])->values(),
             ],
         ]);
+    }
+
+    protected function filteredInstallmentQuery(string $search, string $status, string $dateFrom, string $dateTo)
+    {
+        return Installment::query()
+            ->with(['loan:id,loan_code', 'customer:id,name,customer_code,phone'])
+            ->when($search !== '', function ($builder) use ($search) {
+                $builder->where(function ($nested) use ($search) {
+                    $nested
+                        ->whereHas('loan', fn ($loanQuery) => $loanQuery->where('loan_code', 'like', "%{$search}%"))
+                        ->orWhereHas('customer', fn ($customerQuery) => $customerQuery
+                            ->where('name', 'like', "%{$search}%")
+                            ->orWhere('customer_code', 'like', "%{$search}%")
+                            ->orWhere('phone', 'like', "%{$search}%"));
+                });
+            })
+            ->when(in_array($status, ['pending', 'partial', 'paid'], true), fn ($builder) => $builder->where('status', $status))
+            ->when($status === 'overdue', fn ($builder) => $builder->overdue())
+            ->when($status === 'due_today', fn ($builder) => $builder->dueToday())
+            ->when($dateFrom !== '', fn ($builder) => $builder->whereDate('due_date', '>=', $dateFrom))
+            ->when($dateTo !== '', fn ($builder) => $builder->whereDate('due_date', '<=', $dateTo));
+    }
+
+    protected function installmentListItem(Installment $installment): array
+    {
+        $outstanding = max(0, (float) $installment->installment_amount - (float) $installment->paid_amount);
+
+        return [
+            'id' => $installment->id,
+            'installment_no' => $installment->installment_no,
+            'due_date' => $installment->due_date?->format('Y-m-d'),
+            'principal_component' => (float) $installment->principal_component,
+            'interest_component' => (float) $installment->interest_component,
+            'installment_amount' => (float) $installment->installment_amount,
+            'paid_amount' => (float) $installment->paid_amount,
+            'outstanding_amount' => $outstanding,
+            'days_late' => $installment->due_date && $installment->due_date->lt(today()) && $outstanding > 0 ? $installment->due_date->diffInDays(today()) : 0,
+            'status' => $installment->status,
+            'loan' => $installment->loan ? [
+                'id' => $installment->loan->id,
+                'loan_code' => $installment->loan->loan_code,
+            ] : null,
+            'customer' => $installment->customer ? [
+                'id' => $installment->customer->id,
+                'name' => $installment->customer->name,
+                'customer_code' => $installment->customer->customer_code,
+                'phone' => $installment->customer->phone,
+            ] : null,
+        ];
     }
 
     protected function deriveInstallmentCount(Loan $loan): int

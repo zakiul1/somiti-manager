@@ -133,6 +133,17 @@ class CustomerPortalController extends Controller
         ]);
     }
 
+    public function profile(Request $request): Response
+    {
+        $customer = $this->customer($request);
+
+        return Inertia::render('portal/profile', [
+            'customer' => $this->customerProfilePayload($customer),
+            'portalAccount' => $this->portalAccountPayload($request),
+            'summary' => $this->summaryPayload($customer),
+        ]);
+    }
+
     private function customer(Request $request)
     {
         return $request->user()
@@ -157,6 +168,27 @@ class CustomerPortalController extends Controller
         ];
     }
 
+    private function customerProfilePayload($customer): array
+    {
+        return [
+            'id' => $customer->id,
+            'full_name' => $customer->name,
+            'name' => $customer->name,
+            'customer_code' => $customer->customer_code,
+            'phone' => $customer->phone,
+            'email' => $customer->email,
+            'nid_number' => $customer->nid_number,
+            'date_of_birth' => $customer->date_of_birth?->format('Y-m-d'),
+            'gender' => $customer->gender,
+            'status' => $customer->status,
+            'present_address' => $customer->present_address,
+            'permanent_address' => $customer->permanent_address,
+            'photo_url' => $customer->photo_url,
+            'nid_front_url' => $customer->nid_front_url,
+            'nid_back_url' => $customer->nid_back_url,
+        ];
+    }
+
     private function portalAccountPayload(Request $request): array
     {
         $user = $request->user();
@@ -164,26 +196,41 @@ class CustomerPortalController extends Controller
         return [
             'name' => $user->name,
             'email' => $user->email,
+            'username' => $user->email,
             'last_login_at' => optional($user->last_login_at)?->format('Y-m-d H:i'),
         ];
     }
 
     private function summaryPayload($customer): array
     {
-        $loanCount = Loan::query()->where('customer_id', $customer->id)->whereIn('status', ['approved', 'active', 'closed'])->count();
+        $loanQuery = Loan::query()->where('customer_id', $customer->id)->whereIn('status', ['active', 'closed', 'defaulted']);
+        $activeLoanCount = (clone $loanQuery)->where('status', 'active')->count();
+        $closedLoanCount = (clone $loanQuery)->where('status', 'closed')->count();
         $installmentQuery = Installment::query()->where('customer_id', $customer->id);
         $openInstallmentQuery = (clone $installmentQuery)->whereIn('status', ['pending', 'partial', 'overdue']);
-        $nextDue = (clone $openInstallmentQuery)->orderBy('due_date')->orderBy('installment_no')->first();
+        $overdueInstallmentQuery = (clone $installmentQuery)->where('status', 'overdue');
+        $nextDue = (clone $openInstallmentQuery)->with('loan:id,loan_code')->orderBy('due_date')->orderBy('installment_no')->first();
+        $today = now()->toDateString();
         $totalPaid = (float) Payment::query()->where('customer_id', $customer->id)->sum('amount');
         $remainingBalance = (float) $openInstallmentQuery->get()->sum(fn (Installment $installment) => (float) $installment->installment_amount - (float) $installment->paid_amount);
+        $overdueAmount = (float) $overdueInstallmentQuery->get()->sum(fn (Installment $installment) => (float) $installment->installment_amount - (float) $installment->paid_amount);
+        $dueTodayAmount = (float) (clone $openInstallmentQuery)->whereDate('due_date', $today)->get()->sum(fn (Installment $installment) => (float) $installment->installment_amount - (float) $installment->paid_amount);
+        $settlementCount = (int) Payment::query()->where('customer_id', $customer->id)->where('payment_type', 'full_settlement')->count();
 
         return [
-            'activeLoans' => $loanCount,
+            'activeLoans' => $activeLoanCount,
+            'closedLoans' => $closedLoanCount,
             'totalInstallments' => (clone $installmentQuery)->count(),
+            'openInstallments' => (clone $openInstallmentQuery)->count(),
+            'overdueInstallments' => (clone $overdueInstallmentQuery)->count(),
             'totalPaid' => $totalPaid,
             'nextDueAmount' => $nextDue ? (float) $nextDue->installment_amount - (float) $nextDue->paid_amount : 0,
             'remainingBalance' => $remainingBalance,
+            'overdueAmount' => $overdueAmount,
+            'dueTodayAmount' => $dueTodayAmount,
             'nextDueDate' => $nextDue?->due_date?->format('Y-m-d'),
+            'nextDueLoanCode' => $nextDue?->loan?->loan_code,
+            'settlementPayments' => $settlementCount,
         ];
     }
 
@@ -191,6 +238,13 @@ class CustomerPortalController extends Controller
     {
         $paid = (float) ($loan->payments_sum_amount ?? 0);
         $total = (float) $loan->total_payable;
+        $nextDue = $loan->installments()
+            ->whereIn('status', ['pending', 'partial', 'overdue'])
+            ->orderBy('due_date')
+            ->orderBy('installment_no')
+            ->first();
+        $openInstallments = $loan->installments()->whereIn('status', ['pending', 'partial', 'overdue'])->count();
+        $overdueAmount = (float) $loan->installments()->where('status', 'overdue')->get()->sum(fn (Installment $installment) => (float) $installment->installment_amount - (float) $installment->paid_amount);
 
         return [
             'id' => $loan->id,
@@ -200,6 +254,10 @@ class CustomerPortalController extends Controller
             'total_paid' => $paid,
             'outstanding' => max($total - $paid, 0),
             'installments_count' => (int) ($loan->installments_count ?? 0),
+            'open_installments' => $openInstallments,
+            'overdue_amount' => $overdueAmount,
+            'next_due_amount' => $nextDue ? max((float) $nextDue->installment_amount - (float) $nextDue->paid_amount, 0) : 0,
+            'next_due_date' => $nextDue?->due_date?->format('Y-m-d'),
             'status' => $loan->status,
             'start_date' => $loan->start_date?->format('Y-m-d'),
             'first_collection_date' => $loan->first_collection_date?->format('Y-m-d'),
@@ -231,6 +289,8 @@ class CustomerPortalController extends Controller
             'amount' => (float) $payment->amount,
             'payment_date' => $payment->payment_date?->format('Y-m-d'),
             'payment_method' => $payment->payment_method,
+            'payment_type' => $payment->payment_type ?: 'regular',
+            'batch_reference' => $payment->batch_reference,
             'reference_no' => $payment->reference_no,
         ];
     }

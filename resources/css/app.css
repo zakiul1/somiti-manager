@@ -1,20 +1,159 @@
+@import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
-
 @source "../js/**/*.tsx";
 @source "../js/**/*.ts";
 @source "../js/**/*.jsx";
 @source "../js/**/*.js";
 @source "../views/**/*.blade.php";
-
 :root {
     color-scheme: light;
+    font-family: 'Inter', 'Hind Siliguri', ui-sans-serif, system-ui, sans-serif;
 }
 
 .dark {
     color-scheme: dark;
 }
 
-html, body {
-    @apply bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100;
+html,
+body {
+    font-family: 'Inter', 'Hind Siliguri', ui-sans-serif, system-ui, sans-serif;
+    @apply bg-slate-50 text-slate-900 antialiased;
+}
+
+html.dark,
+body.dark,
+.dark body {
+    @apply bg-slate-950 text-slate-100;
+}
+
+body {
+    min-height: 100vh;
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+    -webkit-tap-highlight-color: transparent;
+}
+
+.auth-glow-bg {
+    background: radial-gradient(circle at top, rgba(255, 255, 255, 0.22), transparent 30%), radial-gradient(circle at bottom right, rgba(255, 255, 255, 0.12), transparent 28%);
+}
+
+.dark .auth-glow-bg {
+    background: radial-gradient(circle at top, rgba(129, 140, 248, 0.22), transparent 28%), radial-gradient(circle at bottom right, rgba(34, 211, 238, 0.14), transparent 26%);
+}
+
+.auth-glass-panel {
+    @apply border border-white/35 bg-white/90 shadow-2xl shadow-slate-950/10 backdrop-blur-xl;
+}
+
+.dark .auth-glass-panel {
+    @apply border-indigo-400/20 bg-slate-950/92 shadow-black/40;
+}
+
+.auth-soft-control {
+    @apply border border-white/15 bg-white/10 text-white shadow-sm backdrop-blur-md transition;
+}
+
+.auth-soft-control:hover {
+    @apply bg-white/15;
+}
+
+.dark .auth-soft-control {
+    @apply border-slate-700/80 bg-slate-800/80 text-slate-100;
+}
+
+.dark .auth-soft-control:hover {
+    @apply bg-slate-700/90;
+}
+
+.auth-input {
+    @apply border border-slate-200/90 bg-white/90 text-slate-900;
+}
+
+.auth-input::placeholder {
+    color: rgb(148 163 184);
+}
+
+.dark .auth-input {
+    @apply border-slate-700 bg-slate-900/90 text-slate-100;
+}
+
+.dark .auth-input::placeholder {
+    color: rgb(100 116 139);
+}
+
+.auth-segment {
+    @apply rounded-2xl border border-slate-200/80 bg-slate-100/90 shadow-sm;
+}
+
+.dark .auth-segment {
+    @apply border-slate-700/70 bg-slate-900/85;
+}
+
+.auth-primary-btn {
+    @apply bg-indigo-600 text-white shadow-lg shadow-indigo-600/25 transition;
+}
+
+.auth-primary-btn:hover,
+.auth-primary-btn:focus {
+    @apply bg-indigo-700;
+}
+
+.dark .auth-primary-btn {
+    @apply bg-indigo-500 shadow-indigo-950/50;
+}
+
+.dark .auth-primary-btn:hover,
+.dark .auth-primary-btn:focus {
+    @apply bg-indigo-400;
+}
+
+.auth-muted-text {
+    @apply text-slate-600;
+}
+
+.dark .auth-muted-text {
+    @apply text-slate-300;
+}
+
+.auth-subtle-text {
+    @apply text-slate-500;
+}
+
+.dark .auth-subtle-text {
+    @apply text-slate-300;
+}
+
+.auth-link {
+    @apply font-semibold text-indigo-600 transition;
+}
+
+.auth-link:hover {
+    @apply text-indigo-500;
+}
+
+.dark .auth-link {
+    @apply text-indigo-300;
+}
+
+.dark .auth-link:hover {
+    @apply text-indigo-200;
+}
+
+.auth-logo-shell {
+    @apply border border-white/25 bg-white/92 shadow-2xl shadow-slate-950/20 backdrop-blur-xl;
+}
+
+.dark .auth-logo-shell {
+    @apply border-cyan-400/20 bg-slate-900/88 shadow-cyan-950/30;
 }

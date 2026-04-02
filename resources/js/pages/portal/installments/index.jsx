@@ -5,6 +5,16 @@ import PortalSummaryStrip from '@/components/portal/portal-summary-strip';
 import { useLocale } from '@/hooks/use-locale';
 import { formatDate, formatMoney } from '@/lib/formatters';
 
+function StatusPill({ value, t }) {
+    const styles = {
+        pending: 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300',
+        partial: 'bg-sky-100 text-sky-700 dark:bg-sky-500/10 dark:text-sky-300',
+        paid: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300',
+        overdue: 'bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300',
+    };
+    return <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${styles[value] || 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'}`}>{t(`portal.status${value?.charAt(0)?.toUpperCase()}${value?.slice(1)}`) || value}</span>;
+}
+
 export default function PortalInstallmentsIndex({ summary, filters, installments }) {
     const { t, locale } = useLocale();
 
@@ -26,31 +36,32 @@ export default function PortalInstallmentsIndex({ summary, filters, installments
                             <option value="overdue">{t('portal.statusOverdue')}</option>
                         </select>
                     </div>
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full text-sm">
-                            <thead>
-                                <tr className="border-b border-slate-200 text-left text-slate-500 dark:border-slate-800 dark:text-slate-400">
-                                    <th className="px-3 py-3">{t('loans.loanCode')}</th>
-                                    <th className="px-3 py-3">{t('installments.installmentNo')}</th>
-                                    <th className="px-3 py-3">{t('installments.dueDate')}</th>
-                                    <th className="px-3 py-3">{t('installments.amount')}</th>
-                                    <th className="px-3 py-3">{t('portal.outstanding')}</th>
-                                    <th className="px-3 py-3">{t('installments.status')}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {installments.length ? installments.map((item) => (
-                                    <tr key={item.id} className="border-b border-slate-100 dark:border-slate-900">
-                                        <td className="px-3 py-3 font-medium text-slate-900 dark:text-slate-100">{item.loan_code}</td>
-                                        <td className="px-3 py-3 text-slate-600 dark:text-slate-300">#{item.installment_no}</td>
-                                        <td className="px-3 py-3 text-slate-600 dark:text-slate-300">{formatDate(item.due_date, locale)}</td>
-                                        <td className="px-3 py-3 text-slate-600 dark:text-slate-300">{formatMoney(item.installment_amount, locale)}</td>
-                                        <td className="px-3 py-3 text-slate-600 dark:text-slate-300">{formatMoney(item.outstanding, locale)}</td>
-                                        <td className="px-3 py-3 text-slate-600 dark:text-slate-300">{item.status}</td>
-                                    </tr>
-                                )) : <tr><td className="px-3 py-8 text-center text-slate-500 dark:text-slate-400" colSpan="6">{t('portal.noInstallments')}</td></tr>}
-                            </tbody>
-                        </table>
+                    <div className="space-y-3">
+                        {installments.length ? installments.map((item) => (
+                            <div key={item.id} className="rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
+                                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                    <div className="min-w-0">
+                                        <p className="truncate font-medium text-slate-900 dark:text-slate-100">{item.loan_code} • #{item.installment_no}</p>
+                                        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t('installments.dueDate')}: {formatDate(item.due_date, locale)}</p>
+                                    </div>
+                                    <div className="grid gap-3 text-sm sm:grid-cols-3 md:min-w-[360px]">
+                                        <div>
+                                            <p className="text-slate-500 dark:text-slate-400">{t('installments.amount')}</p>
+                                            <p className="mt-1 font-medium text-slate-900 dark:text-slate-100">{formatMoney(item.installment_amount, locale)}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-slate-500 dark:text-slate-400">{t('payments.paidAmount')}</p>
+                                            <p className="mt-1 font-medium text-slate-900 dark:text-slate-100">{formatMoney(item.paid_amount, locale)}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-slate-500 dark:text-slate-400">{t('portal.outstanding')}</p>
+                                            <p className="mt-1 font-medium text-slate-900 dark:text-slate-100">{formatMoney(item.outstanding, locale)}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="mt-3"><StatusPill value={item.status} t={t} /></div>
+                            </div>
+                        )) : <div className="rounded-2xl border border-dashed border-slate-300 px-4 py-10 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">{t('portal.noInstallments')}</div>}
                     </div>
                 </AppCard>
             </div>

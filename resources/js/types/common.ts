@@ -7,4 +7,5 @@ export type NavItem = {
     href: string;
     icon?: React.ElementType;
     roles?: string[];
+    children?: NavItem[];
 };

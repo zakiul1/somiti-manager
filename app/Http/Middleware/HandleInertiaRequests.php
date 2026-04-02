@@ -49,7 +49,7 @@ class HandleInertiaRequests extends Middleware
                 'error' => fn () => $request->session()->get('error'),
             ],
             'app' => [
-                'name' => Setting::get('app_name', config('app.name', 'Somiti Manager')),
+                'name' => Setting::get('app_name', config('app.name', 'Pachbaria Swapnasiri Foundation')),
                 'locale' => AppLocale::normalize($request->cookie('somiti_locale'), Setting::get('default_locale', 'en')),
                 'theme' => in_array($request->cookie('somiti_theme'), ['light', 'dark'], true)
                     ? $request->cookie('somiti_theme')

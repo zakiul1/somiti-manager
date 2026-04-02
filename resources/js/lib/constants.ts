@@ -2,6 +2,7 @@ import {
     Bell,
     ClipboardList,
     CreditCard,
+    FolderKanban,
     Wallet,
     FileText,
     Handshake,
@@ -15,7 +16,7 @@ import {
 } from 'lucide-react';
 import type { NavItem } from '@/types/common';
 
-export const APP_NAME = 'Somiti Manager';
+export const APP_NAME = 'Pachbaria Swapnasiri Foundation';
 
 export const SIDEBAR_NAV_ITEMS: NavItem[] = [
     {
@@ -52,6 +53,16 @@ export const SIDEBAR_NAV_ITEMS: NavItem[] = [
         title: 'Documents',
         href: '/documents',
         icon: FileText,
+    },
+    {
+        title: 'Contribution Fund',
+        href: '/contribution-fund',
+        icon: FolderKanban,
+        children: [
+            { title: 'Contribution Overview', href: '/contribution-fund' },
+            { title: 'Monthly Collections', href: '/contribution-fund/months' },
+            { title: 'Member Statements', href: '/contribution-fund/members' },
+        ],
     },
     {
         title: 'Notifications',
